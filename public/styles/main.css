@@ -1,0 +1,10 @@
+body {
+	padding: 2em;
+	color: #111;
+	background: #ddd;
+	font-family: ubuntu, arial;
+}
+
+canvas {
+	border: 1px solid #111;
+}

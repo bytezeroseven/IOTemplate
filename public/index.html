@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>WebSocket Client</title>
+	<link rel="stylesheet" type="text/css" href="styles/main.css">
+</head>
+<body>
+	<h1>Hello!</h1>
+	<p>Seems like everything is working fine till now. Good job.</p>
+	<h2>What's this?</h2>
+	<p>Nothing special here except some networking based on websockets.</p>
+	<h2>ToDo:</h2>
+	<ul>
+		<li>&#x2714;WebSocket server.</li>
+		<li>&#x2714;WebSocket communications using arraybuffers.</li>
+		<li>&#x2714;Sending and reading string messages.</li>
+		<li>&#x2714;Ping-pong.</li>
+		<li>&#x2714;Sending and reading hybrid messages.</li>
+		<li>Packet size calculation.
+			<ul>
+				<li>1 byte for message id or type.</li>
+				<li>1 byte for marking message-end when byte length is not known.</li>
+				<li>bytes for string=length+1</li>
+			</ul>
+		</li>
+	</ul>
+	<button id="wsConnect">Connect</button>
+	<canvas id="game"></canvas>
+	<script src="scripts/main.js"></script>
+</body>
+</html>
