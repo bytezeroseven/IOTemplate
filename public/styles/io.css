@@ -94,6 +94,8 @@ input {
 }
 
 #gameCanvas {
+	width: auto;
+	height: auto;
 	background: #fff;
 	z-index: -1;
 }
@@ -105,32 +107,32 @@ input {
 
 @keyframes fade-out {
 	from { opacity: 1; }
-	to { opacity: 0; }
+	to   { opacity: 0; }
 }
 
 @keyframes fade-in {
 	from { opacity: 0; }
-	to { opacity: 1; }
+	to   { opacity: 1; }
 }
 
 @keyframes go-up {
-	from { transform: translateY(0%); }
-	to { transform: translateY(-100%); }
+	from { transform: translateY(0%);    }
+	to   { transform: translateY(-100%); }
 }
 
 @keyframes go-down {
 	from { transform: translateY(-100%); }
-	to { transform: translateY(0%); }
+	to   { transform: translateY(0%);    }
 }
 
 @keyframes come-up {
 	from { transform: translateY(100%); }
-	to { transform: translateY(0%); }
+	to   { transform: translateY(0%);   }
 }
 
 @keyframes come-down {
-	from { transform: translateY(0%); }
-	to { transform: translateY(100%); }
+	from { transform: translateY(0%);   }
+	to   { transform: translateY(100%); }
 }
 
 footer {
