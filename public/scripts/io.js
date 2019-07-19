@@ -83,12 +83,6 @@ class Player {
 	}
 }
 
-function onResize() {
-	let scale = Math.min(innerWidth / 1920, innerHeight / 1080);
-	document.getElementById("mainOverlay").style.transform = "translate(-50%, -50%) scale("+scale+") translate(50%, 50%)";
-}
-window.onresize = onResize;
-onResize();
 
 let width = 1920;
 let height = 1080;

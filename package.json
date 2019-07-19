@@ -1,5 +1,5 @@
 {
-  "name": "iotemplate",
+  "name": "IoTemplate",
   "version": "0.0.1",
   "description": "Ready-made template for your next big (or small) IO game.",
   "main": "server.js",

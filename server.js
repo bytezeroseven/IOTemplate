@@ -30,7 +30,7 @@ function onWsConnection(ws, req) {
 	let word = words[Math.floor(Math.random() * words.length)];
 	let ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
 	let vowel = "aeiou".indexOf(word[0]) > -1 ? "An" : "A";
-	logMsg(connectText.replace(/\{0}/, vowel).replace(/\{1}/, word).replace(/\{2}/, ip));
+	console.log(connectText.replace(/\{0}/, vowel).replace(/\{1}/, word).replace(/\{2}/, ip));
 
 	ws.ip = ip;
 
@@ -63,10 +63,8 @@ function onWsConnection(ws, req) {
 		}, 5E3);
 	}
 	function onWsClose() {
-		logMsg("A WebSocket connection was closed.");
-		padding = 2;
-		logMsg(disconnectText.replace(/\{0}/, ip));
-		padding = 1;
+		console.log("A WebSocket connection was closed.");
+		console.log(disconnectText.replace(/\{0}/, ip));
 	}
 	function onWsMessage(msg) {
 		handleWsMessage(prepareData(msg.data));
@@ -91,10 +89,8 @@ function onWsConnection(ws, req) {
 				break;
 			case 23:
 				let str = getString();
-				logMsg("A client attempted to negotiate.")
-				padding = 2;
-				logMsg("The client " + (ws.userData ? ws.userData.nickname + " " : "") + "says:", str);
-				padding = 1;
+				console.log("A client attempted to negotiate.")
+				console.log("The client " + (ws.userData ? ws.userData.nickname + " " : "") + "says:", str);
 				break;
 			case 10:
 				let firstname = getString();
@@ -102,11 +98,9 @@ function onWsConnection(ws, req) {
 				let nickname = getString();
 				let money = view.getUint8(offset);
 				ws.userData = { firstname, lastname, nickname, money };
-				logMsg("New user signed up.");
-				padding = 2;
-				logMsg(JSON.stringify(ws.userData));
-				padding = 1;
-				sendString("New user created with nickname="+nickname);
+				console.log("New user signed up.");
+				console.log(JSON.stringify(ws.userData));
+				sendString("New user signed up with nickname="+nickname);
 				break;
 		}
 	}
@@ -129,11 +123,9 @@ function ping() {
 	wss.clients.forEach(function each(ws) {
 		if(ws.isAlive == false) {
 			ws.terminate();
-			logMsg("A WebSocket connection was terminated.");
-			padding = 2;
-			logMsg("ip=", ws.ip);
-			logMsg("Reason: The connection did not ping to pong.");
-			padding = 1;
+			console.log("A WebSocket connection was terminated.");
+			console.log("ip=", ws.ip);
+			console.log("Reason: The connection did not ping to pong.");
 		}
 		ws.isAlive = false;
 		ws.ping();
@@ -145,8 +137,3 @@ setInterval(ping, 3E2);
 const words = ["new", "interesting", "wild", "strange", "breathtaking"];
 const connectText = "{0} {1} WebSocket connection appears ip={2}";
 const disconnectText = "{0} was never seen again.";
-
-let padding = 1;
-function logMsg() {
-	return console.log.call({}, "\0".repeat(4*padding) + "+--", ...arguments);
-}
