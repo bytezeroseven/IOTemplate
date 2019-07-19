@@ -52,7 +52,7 @@ function onWsConnection(ws, req) {
 	}
 
 	function onWsOpen() {
-		
+		sendString("Server test message.")
 	}
 
 	function onWsClose() {
@@ -62,6 +62,13 @@ function onWsConnection(ws, req) {
 	function onWsMessage(msg) {
 		handleWsMessage(prepareData(msg.data));
 	}
+
+	ws.on("pong", pong);
+
+	onWsOpen();
+	ws.onopen = onWsOpen;
+	ws.onmessage = onWsMessage;
+	ws.onclose = onWsClose;
 
 	function handleWsMessage(view) {		
 		function getString() {
@@ -78,13 +85,6 @@ function onWsConnection(ws, req) {
 			// Handle messages
 		}
 	}
-
-	ws.on("pong", pong);
-
-	onWsOpen();
-	ws.onopen = onWsOpen;
-	ws.onmessage = onWsMessage;
-	ws.onclose = onWsClose;
 }
 
 wss.on("connection", onWsConnection);

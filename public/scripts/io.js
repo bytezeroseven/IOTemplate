@@ -4,9 +4,7 @@ let ws;
 
 function onWsOpen() {
 	console.log("WebSocket open.");
-	let view = prepareMsg(1);
-	view.setUint8(0, 42); 
-	sendMsg(view);
+	hide();
 }
 
 function onWsMessage(msg) {
@@ -52,7 +50,15 @@ function handleWsMessage(view) {
 
 	let offset = 0;
 	switch (view.getUint8(offset++)) {
-		// Handle messages...
+		case 23: 
+			addMsg({
+				text: getString(),
+				duration: 6000,
+				bgColor: "red"
+			});
+			break;
+		default: 
+			console.log("unknown server message.");
 	}
 }
 
@@ -128,7 +134,7 @@ function show() {
 }
 
 playButton.onclick = function play() {
-	hide();
+	wsConnect();
 }
 
 function onKeyDown(evt) {
