@@ -3,7 +3,6 @@
 let nicknameInput = document.getElementById("nicknameInput"),
 	playButton = document.getElementById("playButton"),
 	main = document.querySelector(".main"),
-	// bg = document.querySelector(".bg"),
 	overlay = document.getElementById("overlay"),
 	header = document.querySelector("header"),
 	footer = document.querySelector("footer"),
@@ -29,7 +28,6 @@ function hide() {
 	footer.animate("come-down 0.2s linear forwards");
 	main.animate("fade-out 0.3s linear forwards");
 	setTimeout(function after() {
-		// bg.animate("fade-out 0.3s linear forwards");
 		overlay.animate("fade-out 0.3s linear forwards");
 		setTimeout(showCanvas, 0.3E3);
 	}, 0.5E3);
@@ -82,13 +80,6 @@ class Player {
 		ctx.fill();
 	}
 }
-
-function onResize() {
-	let scale = Math.min(innerWidth / 1920, innerHeight / 1080);
-	document.getElementById("mainOverlay").style.transform = "translate(-50%, -50%) scale("+scale+") translate(50%, 50%)";
-}
-window.onresize = onResize;
-onResize();
 
 let width = 1920;
 let height = 1080;

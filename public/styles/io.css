@@ -86,8 +86,8 @@ input {
 }
 
 .overlay {
-	width: 1920px;
-	height: 1080px;
+	width: 100%;
+	height: 100%;
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -101,10 +101,6 @@ input {
 #overlay {
 	background: #ccc; 
 	display: none;
-}
-
-.bg {
-	background: url(../bg.png);
 }
 
 @keyframes fade-out {
