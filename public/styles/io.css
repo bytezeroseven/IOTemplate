@@ -94,7 +94,7 @@ input {
 }
 
 #gameCanvas {
-	width: auto;
+	width: 100%;
 	height: auto;
 	background: #fff;
 	z-index: -1;

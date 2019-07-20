@@ -1,17 +1,152 @@
 
 
-const express = require("express");
-const app = express();
+let nodes = [];
+let remove = [];
 
-app.use("/", express.static("public"));
+let gameSize = 1000;
 
-const port = process.env.PORT || 6969;
-const server = app.listen(port, function done() {
-	console.log("Server started listening on port=" + port);
-});
+class Circle {
+	constructor(x, y, r) {
+		this.id = ~~(Math.random() * 1E10)
+		this.x = x;
+		this.y = y;
+		this.r = r;
+		this.hue = ~~(Math.random() * 256);
+		this.mouseX = 0;
+		this.mouseY = 0;
+		this.addedNodes = [];
+		this.removedNodes = [];
+		this.updatedNodes = [];
+	}
 
-const WebSocket = require("ws");
-const wss = new WebSocket.Server({ server });
+	move() {
+		let d = Math.hypot(this.mouseX, this.mouseY) || 1;
+		let speed = 1 / (1 + Math.pow(0.5 * this.r, 0.43)) * 1.28 * 60; 
+		this.x += this.mouseX / d * speed;
+		this.y += this.mouseY / d * speed;
+		this.x = Math.max(Math.min(this.x, gameSize), 0);
+		this.y = Math.max(Math.min(this.y, gameSize), 0);
+	}
+}
+
+function removeNode(id) {
+	let index = nodes.findIndex(node => node.id == id);
+	if (index > -1) nodes.splice(index, 1);
+}
+
+function onWsConnection(ws, req) {
+	let node = new Circle(
+		Math.random() * 1000, 
+		Math.random() * 400, 
+		50+Math.random() * 50
+	);
+	nodes.push(node);
+	node.ws = ws;
+
+	function onWsOpen() {
+		sendString(ws, "You're connected.");
+	}
+
+	function onWsClose() {
+		remove.push(node.id);
+	}
+
+	function onWsMessage(msg) {
+		handleWsMessage(prepareData(msg.data));
+	}
+
+	onWsOpen();
+	ws.on("pong", pong);
+	ws.onopen = onWsOpen;
+	ws.onmessage = onWsMessage;
+	ws.onclose = onWsClose;
+
+	sendFloat32(ws, 12, gameSize);
+	sendFloat32(ws, 13, node.id);
+
+	function handleWsMessage(view) {
+		function getString() {
+			let str = new String();
+			let char = null;
+			while ((char = view.getUint8(offset++)) != 0) {
+				str += String.fromCharCode(char);
+			}
+			return str;
+		}
+		let offset = 0;
+		switch (view.getUint8(offset++)) {
+			case 11:
+				let posX, posY;
+				posX = view.getFloat32(offset);
+				offset += 4;
+				posY = view.getFloat32(offset);
+				node.mouseX = posX;
+				node.mouseY = posY;
+				break;
+		}
+	}
+}
+
+function gameTick() {
+	let view = prepareMsg(1+4+nodes.length*17+4+remove.length*4);
+	let offset = 0;
+	view.setUint8(offset++, 100);
+	view.setFloat32(offset, nodes.length);
+	offset += 4
+	nodes.forEach(function genPackage(node) {
+		node.move();
+		view.setFloat32(offset, node.id);
+		offset += 4;
+		view.setFloat32(offset, node.x);
+		offset += 4;
+		view.setFloat32(offset, node.y);
+		offset += 4;
+		view.setFloat32(offset, node.r);
+		offset += 4;
+		view.setUint8(offset, node.hue);
+		offset++;
+	});
+
+	view.setFloat32(offset, remove.length);
+	offset += 4;
+	remove.forEach(function(id) {
+		view.setFloat32(offset, id);
+		offset += 4;
+		removeNode(id);
+	});
+	nodes.forEach(function sendPackage(node) { sendMsg(node.ws, view); });
+	remove = [];
+}
+
+function prepareMsg(byteLength) {
+	return new DataView(new ArrayBuffer(byteLength));
+}
+
+function sendMsg(ws, view) {
+	if (ws.readyState != WebSocket.OPEN) return false;
+	ws.send(view.buffer);
+}
+
+function sendString(ws, str) {
+	let view = prepareMsg(1+str.length+1);
+	let offset = 0;
+	view.setUint8(offset++, 23);
+	offset = prepareString(view, offset, str);
+	sendMsg(ws, view);
+}
+
+function sendFloat32(ws, msgId, float) {
+	let view = prepareMsg(1+4);
+	view.setUint8(0, msgId);
+	view.setFloat32(1, float);
+	sendMsg(ws, view);
+}
+
+function sendUint8(ws, int) {
+	let view = prepareMsg(1);
+	view.getUint8(0, int);
+	sendMsg(ws, view)
+}
 
 function prepareData(buffer) {
 	let arrayBuffer = new ArrayBuffer(buffer.length);
@@ -22,72 +157,16 @@ function prepareData(buffer) {
 	return new DataView(arrayBuffer);
 }
 
-function prepareMsg(byteLength) {
-	return new DataView(new ArrayBuffer(byteLength));
+function prepareString(view, offset, str) {
+	let i = 0;
+	while (i < str.length) {
+		let code = str.charCodeAt(i++);
+		if(code > 255) continue;
+		view.setUint8(offset++, code);
+	}
+	view.setUint8(offset++, 0)
+	return offset;
 }
-
-function onWsConnection(ws, req) {
-	function sendMsg(view) {
-		if (ws.readyState != WebSocket.OPEN) return false;
-		ws.send(view.buffer);
-	}
-
-	function prepareString(view, offset, str) {
-		let i = 0;
-		while (i < str.length) {
-			let code = str.charCodeAt(i++);
-			if(code > 255) continue;
-			view.setUint8(offset++, code);
-		}
-		view.setUint8(offset++, 0)
-		return offset;
-	}
-
-	function sendString(str) {
-		let view = prepareMsg(1+str.length+1);
-		let offset = 0;
-		view.setUint8(offset++, 23);
-		offset = prepareString(view, offset, str);
-		sendMsg(view);
-	}
-
-	function onWsOpen() {
-		sendString("Server test message.")
-	}
-
-	function onWsClose() {
-		
-	}
-
-	function onWsMessage(msg) {
-		handleWsMessage(prepareData(msg.data));
-	}
-
-	ws.on("pong", pong);
-
-	onWsOpen();
-	ws.onopen = onWsOpen;
-	ws.onmessage = onWsMessage;
-	ws.onclose = onWsClose;
-
-	function handleWsMessage(view) {		
-		function getString() {
-			let str = new String();
-			let char = null;
-			while ((char = view.getUint8(offset++)) != 0) {
-				str += String.fromCharCode(char);
-			}
-			return str;
-		}
-
-		let offset = 0;
-		switch (view.getUint8(offset++)) {
-			// Handle messages
-		}
-	}
-}
-
-wss.on("connection", onWsConnection);
 
 function pong() {
 	this.isAlive = true;
@@ -101,4 +180,19 @@ function ping() {
 	});
 }
 
-setInterval(ping, 3E2);
+const express = require("express");
+const app = express();
+
+app.use("/", express.static("public"));
+
+const port = process.env.PORT || 6969;
+const server = app.listen(port, function done() {
+	console.log("Server started listening on port=" + port);
+});
+
+const WebSocket = require("ws");
+const wss = new WebSocket.Server({ server });
+wss.on("connection", onWsConnection);
+
+setInterval(ping, 3E4);
+setInterval(gameTick, 1E3/20);
