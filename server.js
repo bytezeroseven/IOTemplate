@@ -91,8 +91,8 @@ function onWsConnection(ws, req) {
 				node.mouseX = posX;
 				node.mouseY = posY;
 				break;
-			case 89:
-				sendUint8(ws, 89);
+			case 33:
+				sendUint8(ws, 33);
 				break;
 		}
 	}
@@ -155,7 +155,7 @@ function sendFloat32(ws, msgId, float) {
 
 function sendUint8(ws, int) {
 	let view = prepareMsg(1);
-	view.getUint8(0, int);
+	view.setUint8(0, int);
 	sendMsg(ws, view)
 }
 

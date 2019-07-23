@@ -11,7 +11,7 @@ function onResize() {
 function onKeyUp(evt) {
 	if (evt.keyCode == 27) {
 		if (main.getBoundingClientRect().width == 0) show();
-		else hide();	
+		else hide();
 	}
 }
 
@@ -39,7 +39,7 @@ window.onresize = onResize;
 function onWsOpen() {
 	console.log("WebSocket opened.");
 	sendTime = timestamp;
-	sendUint8(ws, 89);
+	sendUint8(ws, 33);
 	hide();
 }
 
@@ -138,10 +138,13 @@ function handleWsMessage(view) {
 		case 13: 
 			nodeId = view.getFloat32(offset);
 			break;
-		case 89: 
+		case 33: 
 			latency = timestamp - sendTime;
-			addLog(1, "ms");
-			setTimeout(function() { sendUint8(ws, 89); sendTime = timestamp; }, 1000);
+			addLog(1, latency+"ms");
+			setTimeout(function() { 
+				sendUint8(ws, 33); 
+				sendTime = timestamp; 
+			}, 1000);
 			break;
 		default: 
 			console.log("unknown server message.");
@@ -186,7 +189,7 @@ function sendFloat32(ws, msgId, float) {
 
 function sendUint8(ws, int) {
 	let view = prepareMsg(1);
-	view.getUint8(0, int);
+	view.setUint8(0, int);
 	sendMsg(ws, view);
 }
 
