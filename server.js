@@ -7,18 +7,26 @@ let gameSize = 1000;
 
 class Circle {
 	constructor(x, y, r) {
-		this.id = ~~(Math.random() * 1E10)
+		this.id = ~~(Math.random() * 1E10);
 		this.x = x;
 		this.y = y;
 		this.r = r;
 		this.hue = ~~(Math.random() * 256);
+		this.oldX = this.newX = x;
+		this.oldY = this.newY = y;
+		this.newSize = this.r;
+		this.updateTime = 0;
 		this.mouseX = 0;
 		this.mouseY = 0;
 		this.addedNodes = [];
 		this.removedNodes = [];
 		this.updatedNodes = [];
 	}
-
+	updatePos() {
+		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
+		this.x = this.oldX + (this.newX - this.oldX) * dt;
+		this.y = this.oldY + (this.newY - this.oldY) * dt;
+	}
 	move() {
 		let d = Math.hypot(this.mouseX, this.mouseY) || 1;
 		let speed = 1 / (1 + Math.pow(0.5 * this.r, 0.43)) * 1.28 * 60; 
@@ -38,7 +46,7 @@ function onWsConnection(ws, req) {
 	let node = new Circle(
 		Math.random() * 1000, 
 		Math.random() * 400, 
-		50+Math.random() * 50
+		50
 	);
 	nodes.push(node);
 	node.ws = ws;
@@ -83,6 +91,9 @@ function onWsConnection(ws, req) {
 				node.mouseX = posX;
 				node.mouseY = posY;
 				break;
+			case 89:
+				sendUint8(ws, 89);
+				break;
 		}
 	}
 }
@@ -90,7 +101,7 @@ function onWsConnection(ws, req) {
 function gameTick() {
 	let view = prepareMsg(1+4+nodes.length*17+4+remove.length*4);
 	let offset = 0;
-	view.setUint8(offset++, 100);
+	view.setUint8(offset++, 10);
 	view.setFloat32(offset, nodes.length);
 	offset += 4
 	nodes.forEach(function genPackage(node) {
@@ -184,6 +195,7 @@ const express = require("express");
 const app = express();
 
 app.use("/", express.static("public"));
+app.use("/shared", express.static("shared"));
 
 const port = process.env.PORT || 6969;
 const server = app.listen(port, function done() {
