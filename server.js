@@ -47,7 +47,6 @@ function removeNode(id) {
 }
 
 function onWsConnection(ws, req) {
-<<<<<<< HEAD
 	let word = words[Math.floor(Math.random() * words.length)];
 	let ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
 	let vowel = "aeiou".indexOf(word[0]) > -1 ? "An" : "A";
