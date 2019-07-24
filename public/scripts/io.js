@@ -38,9 +38,21 @@ window.onresize = onResize;
 
 function onWsOpen() {
 	console.log("WebSocket opened.");
-	sendTime = timestamp;
-	sendUint8(ws, 33);
+	checkLatency();
+	sendNickname();
 	hide();
+}
+
+function checkLatency() {
+	sendUint8(ws, 33);
+	latencyCheckTime = timestamp;
+}
+
+function sendNickname() {
+	let view = prepareMsg(1+nicknameInput.value.length+1);
+	view.setUint8(0, 49);
+	writeString(view, 1, nicknameInput.value);
+	sendMsg(ws, view);
 }
 
 function onWsClose() {
@@ -73,6 +85,13 @@ function wsConnect(wsUrl) {
 	ws.onerror = function error() {
 		console.log("websocket error.");
 	}
+	nodes = [];
+	nodeId = null;
+	gameSize = 0;
+	latencyCheckTime = 0;
+	lastThroughputTime = 0;
+	msgs = [];
+	logs = [];
 }
 
 function handleWsMessage(view) {
@@ -108,6 +127,7 @@ function handleWsMessage(view) {
 				offset += 4;
 				hue = view.getUint8(offset);
 				offset++;
+				let nickname = getString();
 				let node = nodes.find(node => node.id == nodeId);
 				if (node) {
 					node.updateTime = timestamp;
@@ -117,6 +137,11 @@ function handleWsMessage(view) {
 					node.newY = posY;
 					node.newSize = size;
 					node.hue = hue;
+					node.nickname = nickname;
+					let nicknameText = new Text();
+					nicknameText.setText(nickname);
+					nicknameText.render();
+					node.nicknameText = nicknameText;
 				} else {
 					node = new Circle(posX, posY, size);
 					node.id = nodeId;
@@ -139,12 +164,9 @@ function handleWsMessage(view) {
 			nodeId = view.getFloat32(offset);
 			break;
 		case 33: 
-			latency = timestamp - sendTime;
+			latency = timestamp - latencyCheckTime;
 			addLog(1, latency+"ms");
-			setTimeout(function() { 
-				sendUint8(ws, 33); 
-				sendTime = timestamp; 
-			}, 1000);
+			setTimeout(checkLatency, 1000);
 			break;
 		default: 
 			console.log("unknown server message.");
@@ -161,7 +183,7 @@ function sendMsg(ws, view) {
 	throughput += view.byteLength;
 }
 
-function prepareString(view, offset, str) {
+function writeString(view, offset, str) {
 	let i = 0;
 	while (i < str.length) {
 		let code = str.charCodeAt(i++);
@@ -176,7 +198,7 @@ function sendString(ws, str) {
 	let view = prepareMsg(1+str.length+1);
 	let offset = 0;
 	view.setUint8(offset++, 23);
-	offset = prepareString(view, offset, str);
+	offset = writeString(view, offset, str);
 	sendMsg(ws, view);
 }
 
@@ -318,6 +340,9 @@ function gameLoop() {
 			ctx.lineWidth = 10
 			ctx.stroke();
 			ctx.fill();
+			if (node.nicknameText) {
+				ctx.drawImage(node.nicknameText.canvas, x - node.nicknameText.width / 2, y - node.nicknameText.height / 2)
+			}
 		}
 		ctx.globalAlpha = 1;
 		drawNode(node.x, node.y);
@@ -334,10 +359,11 @@ function gameLoop() {
 	renderMsgs();
 	ctx.drawImage(msgCanvas, 10, 10);
 
-	timestamp - lastTime > 1000 && (
-		addLog(0, throughput+" bytes/sec"),
-		throughput = 0, 
-		lastTime = timestamp);
+	if (timestamp - lastThroughputTime > 1000) {
+		addLog(0, throughput+"bytes/sec");
+		throughput = 0;
+		lastThroughputTime = timestamp;
+	}
 
 	renderLogs();
 	ctx.drawImage(logCanvas, 2, 500+5)
@@ -361,6 +387,7 @@ class Circle {
 		this.addedNodes = [];
 		this.removedNodes = [];
 		this.updatedNodes = [];
+		this.nicknameText = null;
 	}
 	updatePos() {
 		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
@@ -502,7 +529,7 @@ class Text {
 		ctx.textAlign = "left";
 		ctx.textBaseline = "top";
 		if (this.bg) {
-			ctx.globalAlpha = 0.4;
+			ctx.globalAlpha = 0.3;
 			ctx.fillStyle = this.bg;
 			ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 			ctx.globalAlpha = 1;
@@ -517,8 +544,8 @@ class Text {
 }
 
 let latency = 0,
-	sendTime = 0,
-	lastTime = 0,
+	latencyCheckTime = 0,
+	lastThroughputTime = 0,
 	throughput = 0,
 	timestamp = 0,
 	gameSize = 0,

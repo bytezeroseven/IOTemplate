@@ -1,0 +1,6 @@
+Changelog
+
+24th July, 2019
+	Created changelog.txt
+	Created privacy.txt
+	Created terms.txt

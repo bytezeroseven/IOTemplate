@@ -5,6 +5,8 @@ let remove = [];
 
 let gameSize = 1000;
 
+let msgParams = "x,y,r,id,hue,nickname".split(",");
+
 class Circle {
 	constructor(x, y, r) {
 		this.id = ~~(Math.random() * 1E10);
@@ -12,6 +14,7 @@ class Circle {
 		this.y = y;
 		this.r = r;
 		this.hue = ~~(Math.random() * 256);
+		this.nickname = "";
 		this.oldX = this.newX = x;
 		this.oldY = this.newY = y;
 		this.newSize = this.r;
@@ -21,6 +24,7 @@ class Circle {
 		this.addedNodes = [];
 		this.removedNodes = [];
 		this.updatedNodes = [];
+		this.nicknameText = null;
 	}
 	updatePos() {
 		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
@@ -91,6 +95,9 @@ function onWsConnection(ws, req) {
 				node.mouseX = posX;
 				node.mouseY = posY;
 				break;
+			case 49:
+				node.nickname = getString();
+				break;
 			case 33:
 				sendUint8(ws, 33);
 				break;
@@ -99,7 +106,9 @@ function onWsConnection(ws, req) {
 }
 
 function gameTick() {
-	let view = prepareMsg(1+4+nodes.length*17+4+remove.length*4);
+	let length = 1+4+nodes.length*(4*4+1)+4+remove.length*4;
+	nodes.forEach(node => (length += node.nickname.length+1));
+	let view = prepareMsg(length);
 	let offset = 0;
 	view.setUint8(offset++, 10);
 	view.setFloat32(offset, nodes.length);
@@ -116,6 +125,7 @@ function gameTick() {
 		offset += 4;
 		view.setUint8(offset, node.hue);
 		offset++;
+		offset = writeString(view, offset, node.nickname);
 	});
 
 	view.setFloat32(offset, remove.length);
@@ -142,7 +152,7 @@ function sendString(ws, str) {
 	let view = prepareMsg(1+str.length+1);
 	let offset = 0;
 	view.setUint8(offset++, 23);
-	offset = prepareString(view, offset, str);
+	offset = writeString(view, offset, str);
 	sendMsg(ws, view);
 }
 
@@ -168,7 +178,7 @@ function prepareData(buffer) {
 	return new DataView(arrayBuffer);
 }
 
-function prepareString(view, offset, str) {
+function writeString(view, offset, str) {
 	let i = 0;
 	while (i < str.length) {
 		let code = str.charCodeAt(i++);
