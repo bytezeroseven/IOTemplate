@@ -47,7 +47,6 @@ function removeNode(id) {
 }
 
 function onWsConnection(ws, req) {
-	ws.ip = ip;
 	let node = new Circle(
 		Math.random() * 1000, 
 		Math.random() * 400, 
