@@ -47,35 +47,7 @@ function removeNode(id) {
 }
 
 function onWsConnection(ws, req) {
-	let word = words[Math.floor(Math.random() * words.length)];
-	let ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-	let vowel = "aeiou".indexOf(word[0]) > -1 ? "An" : "A";
-	console.log(connectText.replace(/\{0}/, vowel).replace(/\{1}/, word).replace(/\{2}/, ip));
-
 	ws.ip = ip;
-
-	function sendMsg(view) {
-		if (ws.readyState != WebSocket.OPEN) return false;
-		ws.send(view.buffer)
-	}
-	function prepareString(view, offset, str) {
-		let i = 0;
-		while (i < str.length) {
-			let code = str.charCodeAt(i++);
-			if(code > 255) continue;
-			view.setUint8(offset++, code);
-		}
-		view.setUint8(offset++, 0)
-		return offset;
-	}
-	function sendString(str) {
-		let view = prepareMsg(1+str.length+1);
-		let offset = 0;
-		view.setUint8(offset++, 23);
-		offset = prepareString(view, offset, str);
-		sendMsg(view);
-	}
-
 	let node = new Circle(
 		Math.random() * 1000, 
 		Math.random() * 400, 
