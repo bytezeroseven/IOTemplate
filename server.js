@@ -179,26 +179,6 @@ function printIp(req, res, next) {
 	next();
 }
 
-const express = require("express");
-const app = express();
-
-app.use("/", printIp);
-app.use("/", express.static("public"));
-app.use("/shared", express.static("shared"));
-
-const port = process.env.PORT || 6969;
-const server = app.listen(port, function done() {
-	console.log("Server started listening on port=" + port);
-});
-
-const WebSocket = require("ws");
-const wss = new WebSocket.Server({ server });
-wss.on("connection", onWsConnection);
-
-setInterval(ping, 3E4);
-setInterval(gameTick, 1E3/20);
-
-
 class Circle {
 	constructor(x, y, r) {
 		this.id = ~~(Math.random() * 1E10);
@@ -391,6 +371,25 @@ class QuadTree {
 		}
 	}
 }
+
+const express = require("express");
+const app = express();
+
+app.use("/", printIp);
+app.use("/", express.static("public"));
+app.use("/shared", express.static("shared"));
+
+const port = process.env.PORT || 6969;
+const server = app.listen(port, function done() {
+	console.log("Server started listening on port=" + port);
+});
+
+const WebSocket = require("ws");
+const wss = new WebSocket.Server({ server });
+wss.on("connection", onWsConnection);
+
+setInterval(ping, 3E4);
+setInterval(gameTick, 1E3/20);
 
 let gameSize = 1000;
 let nodes = [];

@@ -89,7 +89,7 @@ function wsConnect(wsUrl) {
 	ws.onmessage = onWsMessage;
 	ws.onclose = onWsClose;
 	ws.onerror = function error() {
-		console.log("websocket error.");
+		console.log("websocket error");
 	}
 	nodes = [];
 	nodeId = null;
@@ -189,7 +189,6 @@ function handleWsMessage(view) {
 				lbNames[i].setFont("bolder 18px arial");
 				lbNames[i].render();
 			}
-			console.log("leaders received");
 			break;
 		case 12: 
 			gameSize = view.getFloat32(offset);
@@ -269,7 +268,7 @@ function sendMousePos() {
 }
 
 function play() {
-	wsConnect();
+	wsConnect(regionSelect.selectedOptions[0].value);
 }
 
 function showCanvas() {
@@ -662,7 +661,8 @@ let latency = 0,
 	gridCanvas = document.createElement("canvas"),
 	lbCanvas = document.createElement("canvas"),
 	msgCanvas = document.createElement("canvas"),
-	logCanvas = document.createElement("canvas");
+	logCanvas = document.createElement("canvas"),
+	regionSelect = document.getElementById("regionSelect");
 
 window.onload = function() {
 	onResize();
