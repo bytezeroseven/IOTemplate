@@ -79,8 +79,7 @@ function wsConnect(wsUrl) {
 		ws.close();
 		ws = null;
 	}
-	if (!wsUrl) wsUrl = location.origin;
-	wsUrl = wsUrl.replace(/^http/, "ws");
+	wsUrl = (wsUrl || location.origin).replace(/^http/, "ws");
 	ws = new WebSocket(wsUrl);
 	ws.onopen = onWsOpen;
 	ws.onmessage = onWsMessage;
