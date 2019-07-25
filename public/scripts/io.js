@@ -75,10 +75,12 @@ function wsConnect(wsUrl) {
 		ws.onmessage = null;
 		ws.onopen = null;
 		ws.onclose = null;
+		ws.onerror = null;
 		ws.close();
 		ws = null;
 	}
-	wsUrl = (location.protocol == "https" ? "wss://" : "ws://") + (wsUrl || "localhost:6969");
+	if (!wsUrl) wsUrl = location.origin;
+	wsUrl = wsUrl.replace(/^http/, "ws");
 	ws = new WebSocket(wsUrl);
 	ws.onopen = onWsOpen;
 	ws.onmessage = onWsMessage;
@@ -478,6 +480,11 @@ class QuadTree {
 				node._qtNode.parent.clear();
 				for (let j = 0; j < a.length; j++) node._qtNode.parent.insert(a[j]);
 			}
+		}
+	}
+	update(node) {
+		if (node._qtNode) {
+			let index = node._qtNode
 		}
 	}
 	clear() {
