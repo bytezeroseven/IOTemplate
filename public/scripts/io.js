@@ -21,15 +21,7 @@ function onMouseMove(evt) {
 	sendMousePos();
 }
 
-function onClick() {
-	let txt = "";
-	while(txt.length < 24) txt += String.fromCharCode(40+~~(Math.random() * 100));
-	addMsg({
-		text: txt,
-		duration: 6000,
-		bg: Math.random() > 0.3 ? "black" : "red"
-	});
-}
+function onClick() { }
 
 document.onmousemove = onMouseMove;
 document.onkeyup = onKeyUp;
@@ -37,7 +29,7 @@ document.onclick = onClick;
 window.onresize = onResize;
 
 function onWsOpen() {
-	addMsg({ text: "WebSocket open.", bg: "blue"});
+	addMsg({ text: "WebSocket open", bg: "blue", duration: 5E3});
 	checkLatency();
 	sendNickname();
 	hide();
@@ -116,7 +108,7 @@ function handleWsMessage(view) {
 			break;
 		case 10: 
 			let queueLength = view.getFloat32(offset);
-			addLog({ text: "add:"+queueLength, index: 4 });
+			let packageInfo = [queueLength];
 			offset += 4;
 			for (let i = 0; i < queueLength; i++) {
 				let nodeId = view.getFloat32(offset);
@@ -141,12 +133,13 @@ function handleWsMessage(view) {
 				nodes.push(node);
 				addMsg({ 
 					bg: "black",
-					text: (nickname || "An unnamed cell") + " has joined the petri dish.",
+					text: (nickname.length > 0 ? nickname : "An unnamed cell") + " has joined the petri dish.",
 					duration: 2000,
 				});
+				console.log(nickname.length)
 			}
 			queueLength = view.getFloat32(offset);
-			addLog({ text: "update:"+queueLength, index: 5 });
+			packageInfo.push(queueLength);
 			offset += 4;
 			for (let i = 0; i < queueLength; i++) {
 				let nodeId = view.getFloat32(offset);
@@ -166,13 +159,17 @@ function handleWsMessage(view) {
 				}
 			}
 			queueLength = view.getFloat32(offset);
-			addLog({ text: "remove:"+queueLength, index: 6 });
+			packageInfo.push(queueLength);
 			offset += 4;
 			for (let i = 0; i < queueLength; i++) {
 				let nodeId = view.getFloat32(offset);
 				offset += 4;
 				removeNode(nodeId);
 			}
+			addLog({
+				index: 2,
+				text: packageInfo.join("/")+" (add/update/remove)",
+			});
 			break;
 		case 12: 
 			gameSize = view.getFloat32(offset);
@@ -183,7 +180,7 @@ function handleWsMessage(view) {
 		case 33: 
 			latency = timestamp - latencyCheckTime;
 			addLog({ 
-				text: latency+"ms",
+				text: "Latency: "+latency+"ms",
 				index: 10
 			});
 			setTimeout(checkLatency, 1000);
@@ -198,9 +195,13 @@ function prepareMsg(byteLength) {
 }
 
 function sendMsg(ws, view) {
-	if (!ws || ws.readyState != WebSocket.OPEN) return false;
+	if (!isWsOpen()) return false;
 	ws.send(view.buffer);
 	throughput += view.byteLength;
+}
+
+function isWsOpen() {
+	return ws && ws.readyState == WebSocket.OPEN;
 }
 
 function writeString(view, offset, str) {
@@ -273,8 +274,8 @@ function hide() {
 }
 
 function renderLogs() {
-	logCanvas.width = 200;
-	logCanvas.height = 200;
+	logCanvas.width = logs.map(a => a.width).sort((a,b) => b-a)[0];
+	logCanvas.height = logs.map(a => a.height).reduce((a, b) => a+b);
 	let ctx = logCanvas.getContext("2d");
 	let posY = 0;
 	logs.forEach(function(log) {
@@ -292,8 +293,9 @@ function renderMsgs() {
 		let dt = msg.expireTime - timestamp;
 		dt < 0 && msgs.splice(i, 1);
 		let scale = 1;
-		dt < 200 && (scale = dt / 200);
-		dt > msg.duration - 200 && (scale = (msg.duration - dt) / 200)
+		let animTime = 200;
+		dt < animTime && (scale = dt / animTime);
+		dt > msg.duration - animTime && (scale = (msg.duration - dt) / animTime)
 		ctx.save();
 		ctx.translate(msg.width / 2, y + msg.height / 2);
 		ctx.scale(scale, scale);
@@ -326,7 +328,7 @@ function addMsg(args) {
 function addLog(args) {
 	let msg = new Text();
 	msg.setText(args.text);
-	msg.setStyle("#f3f3f3", "#333", 3);
+	msg.setStyle("#f3f3f3", "#666", 3);
 	msg.setFont("bolder 16px Ubuntu");
 	msg.render();
 	logs[args.index] = msg;
@@ -367,7 +369,7 @@ function gameLoop() {
 
 	if (timestamp - lastThroughputTime > 1000) {
 		addLog({ 
-			text: throughput+"bytes/sec", 
+			text: "Throughput: "+throughput+" bytes/sec", 
 			index: 0 
 		});
 		throughput = 0;
@@ -375,7 +377,7 @@ function gameLoop() {
 	}
 
 	renderLogs();
-	ctx.drawImage(logCanvas, 2, 500+5)
+	ctx.drawImage(logCanvas, 2, canvasHeight-logCanvas.height-5)
 
 	requestAnimationFrame(gameLoop);
 }

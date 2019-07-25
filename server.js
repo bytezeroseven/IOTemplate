@@ -21,7 +21,7 @@ function onWsConnection(ws, req) {
 	node.ws = ws;
 
 	function onWsOpen() {
-		sendString(ws, "You're connected.");
+		// sendString(ws, "Server test message");
 	}
 
 	function onWsClose() {
@@ -54,11 +54,11 @@ function onWsConnection(ws, req) {
 		let offset = 0;
 		switch (view.getUint8(offset++)) {
 			case 11:
-				let mousePosX, mousePosY;
-				mousePosX = view.getFloat32(offset); offset += 4;
-				mousePosY = view.getFloat32(offset); offset += 4;
-				node.mouseX = mousePosX;
-				node.mouseY = mousePosY;
+				let mouseX, mouseY;
+				mouseX = view.getFloat32(offset); offset += 4;
+				mouseY = view.getFloat32(offset); offset += 4;
+				node.mouseX = mouseX;
+				node.mouseY = mouseY;
 				break;
 			case 49:
 				node.nickname = getString();
@@ -143,9 +143,15 @@ function ping() {
 	});
 }
 
+function printIp(req, res, next) {
+	console.log(req.headers["x-forwarded-for"] || req.connection.remoteAddress);
+	next();
+}
+
 const express = require("express");
 const app = express();
 
+app.use("/", printIp);
 app.use("/", express.static("public"));
 app.use("/shared", express.static("shared"));
 
@@ -181,6 +187,7 @@ class Circle {
 		this.allNodes = [];
 		this.nicknameText = null;
 		this.updated = !false;
+		this.playing = !true;
 	}
 	updatePos() {
 		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
@@ -251,8 +258,8 @@ class Circle {
 		});
 		view.setFloat32(offset, this.removedNodes.length);
 		offset += 4;
-		this.removedNodes.forEach(id => {
-			view.setFloat32(offset, id); offset += 4;
+		this.removedNodes.forEach(node => {
+			view.setFloat32(offset, node.id); offset += 4;
 		});
 		return view;
 	}
