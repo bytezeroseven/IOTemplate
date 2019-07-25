@@ -5,28 +5,29 @@ function addNode(node) {
 	qt.insert(node);
 }
 
-function removeNodeById(id) {
-	let index = nodes.findIndex(node => node.id == id);
+function removeNode(node) {
+	let index = nodes.indexOf(node);
 	if (index > -1) nodes.splice(index, 1);
+	qt.remove(node);
 }
 
 function onWsConnection(ws, req) {
 	let node = new Circle(
 		Math.random() * 1000, 
 		Math.random() * 400, 
-		50
+		Math.random() * 10+50
 	);
-	nodes.push(node);
-	qt.insert(node);
+	addNode(node);
 	node.ws = ws;
+	node.playing = false;
 
 	function onWsOpen() {
-		// sendString(ws, "Server test message");
+		sendString(ws, "lOl u iS gaE");
 	}
 
 	function onWsClose() {
 		qt.remove(node);
-		removeNodeById(node.id);
+		removeNode(node);
 	}	
 
 	function onWsMessage(msg) {
@@ -62,9 +63,14 @@ function onWsConnection(ws, req) {
 				break;
 			case 49:
 				node.nickname = getString();
+				node.playing = true;
+				sendMsg(ws, lbNamesView);
 				break;
 			case 33:
 				sendUint8(ws, 33);
+				break;
+			case 255:
+				node.playing = !node.playing;
 				break;
 		}
 	}
@@ -72,13 +78,38 @@ function onWsConnection(ws, req) {
 
 function gameTick() {
 	nodes.forEach(node => {
-		node.move();
+		if (node.playing) node.move();
 		node.checkIfUpdated();
+		if (node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
+		} else {
+			qt.remove(node);
+			qt.insert(node);
+		}
 	});
+	let newNames = nodes.sort((a, b) => b.r - a.r).map(a => a.nickname);
+	newNames = newNames.slice(0, Math.min(10, newNames.length));
+	for (let j = 0; j < newNames.length; j++) {
+		if (newNames[j] != lbNames[j]) {
+			lbNames = newNames;
+			break;
+		}
+	}
+	let nicknameBytes = 0;
+	lbNames.forEach(name => (nicknameBytes += name.length+1));
+	let view = prepareMsg(1+1+nicknameBytes);
+	let offset = 0;
+	view.setUint8(offset++, 20);
+	view.setUint8(offset++, lbNames.length);
+	for (let i = 0; i < lbNames.length; i++) offset = writeString(view, offset, lbNames[i]);
+	lbNamesView = view;
 	nodes.forEach(node => {
-		node.updateViewNodes();
-		sendMsg(node.ws, node.getNodesPackage());
+		if (node.ws) {
+			node.updateViewNodes();
+			sendMsg(node.ws, node.getNodesPackage());
+			lbNames == newNames && sendMsg(node.ws, lbNamesView);
+		}
 	});
+	removedNodes = [];
 }
 
 function prepareMsg(byteLength) {
@@ -167,6 +198,7 @@ wss.on("connection", onWsConnection);
 setInterval(ping, 3E4);
 setInterval(gameTick, 1E3/20);
 
+
 class Circle {
 	constructor(x, y, r) {
 		this.id = ~~(Math.random() * 1E10);
@@ -184,10 +216,11 @@ class Circle {
 		this.addedNodes = [];
 		this.removedNodes = [];
 		this.updatedNodes = [];
+		this.nodesInView = [];
 		this.allNodes = [];
 		this.nicknameText = null;
 		this.updated = !false;
-		this.playing = !true;
+		this.playing = !false;
 	}
 	updatePos() {
 		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
@@ -216,15 +249,15 @@ class Circle {
 	updateViewNodes() {
 		let nodesInView = [];
 		qt.query({ 
-			x: this.x - 192 / 2,
-			y: this.y - 108 / 2,
-			w: 192,
-			h: 108
-		}, function forEach(node) { nodesInView.push(node); });
-		this.addedNodes = nodesInView.filter(node => this.allNodes.indexOf(node) == -1);
-		this.removedNodes = this.allNodes.filter(node => nodesInView.indexOf(node) == -1);
+			x: this.x - 1920 / 2,
+			y: this.y - 1080 / 2,
+			w: 1920,
+			h: 1080
+		}, function forEach(node) { node.playing && nodesInView.push(node); });
+		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
+		this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
 		this.updatedNodes = nodesInView.filter(node => node.updated);
-		this.allNodes = nodesInView;
+		this.nodesInView = nodesInView;
 	}
 	getNodesPackage() {
 		function setCommonData(node) {
@@ -265,7 +298,6 @@ class Circle {
 	}
 }
 
-
 class QuadTree {
 	constructor(x, y, w, h, lvl, parent) {
 		this.x = x;
@@ -296,7 +328,7 @@ class QuadTree {
 		if (this.nodes.length !== 0) {
 			return this.nodes[this.findNodeId(node.x, node.y)].insert(node);
 		} else {
-			if (this.items.length < 5) {
+			if (this.items.length < 10) {
 				this.items.push(node);
 				node._qtNode = this;
 				return this;
@@ -363,3 +395,15 @@ class QuadTree {
 let gameSize = 1000;
 let nodes = [];
 let qt = new QuadTree(0, 0, gameSize, gameSize);
+let lbNames = [];
+let lbNamesView = prepareMsg(0);
+
+for (let i = 0; i < 15; i++) {
+	let node = new Circle(
+		Math.random() * gameSize, 
+		Math.random() * gameSize / 2, 
+		Math.random() * 10+30
+	);
+	node.nickname = "afk"+String.fromCharCode(~~(Math.random() * 127)).repeat(5);
+	addNode(node);
+}

@@ -13,6 +13,7 @@ function onKeyUp(evt) {
 		if (main.getBoundingClientRect().width == 0) show();
 		else hide();
 	}
+	if (evt.key.toLowerCase() == "j") sendUint8(ws, 255);
 }
 
 function onMouseMove(evt) {
@@ -28,8 +29,19 @@ document.onkeyup = onKeyUp;
 document.onclick = onClick;
 window.onresize = onResize;
 
+function addNode(node) {
+	nodes.push(node);
+	qt.insert(node);
+}
+
+function removeNode(node) {
+	let index = nodes.indexOf(node);
+	if (index > -1) nodes.splice(index, 1);
+	qt.remove(node);
+}
+
 function onWsOpen() {
-	addMsg({ text: "WebSocket open", bg: "blue", duration: 5E3});
+	addMsg({ text: "WebSocket open", bg: "blue", duration: 10E3});
 	checkLatency();
 	sendNickname();
 	hide();
@@ -48,7 +60,7 @@ function sendNickname() {
 }
 
 function onWsClose() {
-	addMsg({ text: "WebSocket closed.", bg: "red"});
+	addMsg({ text: "WebSocket closed", bg: "red", duration: 10E3});
 }
 
 function onWsMessage(msg) {
@@ -83,7 +95,7 @@ function wsConnect(wsUrl) {
 	nodeId = null;
 	gameSize = 0;
 	latencyCheckTime = 0;
-	lastThroughputTime = 0;
+	lastTime = 0;
 	msgs = [];
 	logs = [];
 }
@@ -120,23 +132,12 @@ function handleWsMessage(view) {
 				hue = view.getUint8(offset++); 
 				nickname = getString();
 				let node = nodes.find(node => node.id == nodeId);
-				if (node) {
-					removeNode(nodeId);
-				}
+				if (node) removeNode(node);
 				node = new Circle(posX, posY, size);
 				node.id = nodeId;
 				node.hue = hue;
 				node.nickname = nickname;
-				node.nicknameText = new Text();
-				node.nicknameText.setText(nickname);
-				node.nicknameText.render();
-				nodes.push(node);
-				addMsg({ 
-					bg: "black",
-					text: (nickname.length > 0 ? nickname : "An unnamed cell") + " has joined the petri dish.",
-					duration: 2000,
-				});
-				console.log(nickname.length)
+				addNode(node);
 			}
 			queueLength = view.getFloat32(offset);
 			packageInfo.push(queueLength);
@@ -156,6 +157,11 @@ function handleWsMessage(view) {
 					node.newX = posX;
 					node.newY = posY;
 					node.newSize = size;
+					if (node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
+					} else {
+						qt.remove(node);
+						qt.insert(node);
+					}
 				}
 			}
 			queueLength = view.getFloat32(offset);
@@ -164,15 +170,31 @@ function handleWsMessage(view) {
 			for (let i = 0; i < queueLength; i++) {
 				let nodeId = view.getFloat32(offset);
 				offset += 4;
-				removeNode(nodeId);
+				let node = nodes.find(node => node.id == nodeId);
+				removeNode(node);
 			}
 			addLog({
 				index: 2,
 				text: packageInfo.join("/")+" (add/update/remove)",
 			});
 			break;
+		case 20: 
+			let len = view.getUint8(offset++);
+			lbNames = [];
+			for (let i = 0; i < len; i++) {
+				lbNames[i] = new Text();
+				let name = getString();
+				lbNames[i].setText((i+1)+". "+(name == "" ? "An unnamed cell" : name));
+				lbNames[i].setStyle("#fff", false, 0);
+				lbNames[i].setFont("bolder 18px arial");
+				lbNames[i].render();
+			}
+			console.log("leaders received");
+			break;
 		case 12: 
 			gameSize = view.getFloat32(offset);
+			qt = new QuadTree(0, 0, gameSize, gameSize);
+			nodes.forEach(node => qt.insert(node));
 			break;
 		case 13: 
 			nodeId = view.getFloat32(offset);
@@ -246,11 +268,6 @@ function sendMousePos() {
 	sendMsg(ws, msg);
 }
 
-function removeNode(id) {
-	let index = nodes.findIndex(node => node.id == id);
-	if (index > -1) nodes.splice(index, 1);
-}
-
 function play() {
 	wsConnect();
 }
@@ -314,6 +331,29 @@ function renderGrid(size) {
 	ctx.fillRect(size / 2, 0, 2, size);
 }
 
+function renderLb() {
+	if (lbCanvas.text == null) {
+		let text = new Text();
+		text.setText("Leaderboard");
+		text.setStyle("#fff", false, 0);
+		text.render()
+		lbCanvas.text = text;
+	}
+	lbCanvas.width = 180;
+	lbCanvas.height = 270;
+	let posY = 10+lbCanvas.text.height+5;
+	let ctx = lbCanvas.getContext("2d");
+	ctx.fillStyle = "#333";
+	ctx.globalAlpha = 0.7;
+	ctx.fillRect(0, 0, lbCanvas.width, lbCanvas.height);
+	ctx.globalAlpha = 1;
+	ctx.drawImage(lbCanvas.text.canvas, lbCanvas.width/2 - lbCanvas.text.width / 2, 10);
+	lbNames.forEach(function(nameText) {
+		ctx.drawImage(nameText.canvas, lbCanvas.width / 2 - nameText.width / 2, posY);
+		posY += nameText.height+4;
+	});
+}
+
 function addMsg(args) {
 	let msg = new Text();
 	msg.setText(args.text);
@@ -328,8 +368,8 @@ function addMsg(args) {
 function addLog(args) {
 	let msg = new Text();
 	msg.setText(args.text);
-	msg.setStyle("#f3f3f3", "#666", 3);
-	msg.setFont("bolder 16px Ubuntu");
+	msg.setStyle("#f3f3f3", "#666", 3, "black");
+	msg.setFont("bolder 14px Ubuntu");
 	msg.render();
 	logs[args.index] = msg;
 }
@@ -341,16 +381,23 @@ function gameLoop() {
 
 	ctx.save();
 
-	let node = nodes.find(node => node.id == nodeId) || new Circle(0, 0);
-	ctx.translate(canvasWidth / 2 - node.x, canvasHeight / 2 - node.y);
+	let node = nodes.find(node => node.id == nodeId);
+	if (node) {
+		nodeX = node.x;
+		nodeY = node.y;
+	}
+	ctx.translate(canvasWidth / 2 - nodeX, canvasHeight / 2 - nodeY);
 
 	renderGrid(26);
 	ctx.fillStyle = ctx.createPattern(gridCanvas, "repeat");
-	ctx.fillRect(-canvasWidth / 2 + node.x, -canvasHeight / 2 + node.y, canvasWidth, canvasHeight);
+	ctx.fillRect(-canvasWidth / 2 + nodeX, -canvasHeight / 2 + nodeY, canvasWidth, canvasHeight);
 
 	qt.draw();
 
-	nodes.forEach(function(node) {
+	nodes.sort((a, b) => {
+		let x = a.r - b.r;
+		return x == 0 ? a.id - b.id : x;
+	}).forEach(function(node) {
 		node.updatePos();
 		node.r = node.newSize * 0.1 + node.r * 0.9;
 		node.draw();
@@ -367,17 +414,23 @@ function gameLoop() {
 	renderMsgs();
 	ctx.drawImage(msgCanvas, 10, 10);
 
-	if (timestamp - lastThroughputTime > 1000) {
+	if (timestamp - lastTime > 1000) {
 		addLog({ 
-			text: "Throughput: "+throughput+" bytes/sec", 
+			text: "Throughput: "+throughput+" B/s", 
 			index: 0 
 		});
 		throughput = 0;
-		lastThroughputTime = timestamp;
+		lastTime = timestamp;
+		addLog({
+			text: "Rendered in "+(Date.now()-timestamp)+"ms",
+			index: 20
+		});
 	}
 
 	renderLogs();
-	ctx.drawImage(logCanvas, 2, canvasHeight-logCanvas.height-5)
+	ctx.drawImage(logCanvas, 2, canvasHeight-logCanvas.height-5);
+	renderLb();
+	ctx.drawImage(lbCanvas, canvasWidth - lbCanvas.width-10, 10);
 
 	requestAnimationFrame(gameLoop);
 }
@@ -398,6 +451,7 @@ class Circle {
 		this.addedNodes = [];
 		this.removedNodes = [];
 		this.updatedNodes = [];
+		this.nickname = null;
 		this.nicknameText = null;
 	}
 	updatePos() {
@@ -424,9 +478,13 @@ class Circle {
 		ctx.lineWidth = 5;
 		ctx.fill();
 		ctx.stroke();
-		if (this.nicknameText) {
-			ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2)
+		if (this.nicknameText == null) this.nicknameText = new Text();
+		if (this.nickname && this.nicknameText.text != this.nickname) {
+			this.nicknameText.setStyle("#fff", "#333", 3);
+			this.nicknameText.setText(this.nickname);
+			this.nicknameText.render();
 		}
+		if (this.nicknameText) ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
 		ctx.restore();
 	}
 }
@@ -461,7 +519,7 @@ class QuadTree {
 		if (this.nodes.length !== 0) {
 			return this.nodes[this.findNodeId(node.x, node.y)].insert(node);
 		} else {
-			if (this.items.length < 5) {
+			if (this.items.length < 10) {
 				this.items.push(node);
 				node._qtNode = this;
 				return this;
@@ -481,11 +539,6 @@ class QuadTree {
 				node._qtNode.parent.clear();
 				for (let j = 0; j < a.length; j++) node._qtNode.parent.insert(a[j]);
 			}
-		}
-	}
-	update(node) {
-		if (node._qtNode) {
-			let index = node._qtNode
 		}
 	}
 	clear() {
@@ -546,15 +599,15 @@ class Text {
 	}
 	setStyle(fill, stroke, lw, bg) {
 		this.fill = fill;
-		this.stroke = stroke;
-		this.lw = lw;
-		this.bg = bg;
+		this.stroke = stroke || false;
+		this.lw = lw || 0;
+		this.bg = bg || false;
 	}
 	render() {
 		let ctx = this.canvas.getContext("2d");
 		ctx.font = this.fontStr;
-		this.canvas.width = ctx.measureText(this.text).width+this.lw*2;
-		this.canvas.height = this.fontSize+this.lw*2;
+		this.canvas.width = ctx.measureText(this.text).width+this.lw*2+1;
+		this.canvas.height = this.fontSize+this.lw*2+1;
 		this.width = this.canvas.width;
 		this.height = this.canvas.height;
 		ctx.font = this.fontStr;
@@ -569,7 +622,7 @@ class Text {
 		ctx.strokeStyle = this.stroke;
 		ctx.fillStyle = this.fill;
 		ctx.lineWidth = this.lw;
-		ctx.strokeText(this.text, this.lw, this.lw);
+		this.stroke && ctx.strokeText(this.text, this.lw, this.lw);
 		ctx.fillText(this.text, this.lw, this.lw);
 		return this.canvas;
 	}
@@ -577,7 +630,7 @@ class Text {
 
 let latency = 0,
 	latencyCheckTime = 0,
-	lastThroughputTime = 0,
+	lastTime = 0,
 	throughput = 0,
 	timestamp = 0,
 	gameSize = 0,
@@ -592,10 +645,12 @@ let latency = 0,
 	canvasHeight = 0,
 	logs = [],
 	msgs = [],
-	leaders = [],
+	lbNames = [],
 	drawDelay = 120,
-	qt = new QuadTree(0, 0, 1000, 1000),
+	qt = new QuadTree(0, 0, 0, 0),
 	ws = null,
+	nodeX = 0,
+	nodeY = 0,
 	nicknameInput = document.getElementById("nicknameInput"),
 	playButton = document.getElementById("playButton"),
 	main = document.querySelector(".main"),
@@ -612,11 +667,5 @@ let latency = 0,
 window.onload = function() {
 	onResize();
 	playButton.onclick = play;
-	for (let i = 0; i < 40; i++) {
-		qt.insert(new Circle(
-			Math.random() * 1000, 
-			Math.random() * 1000
-		));
-	}
 	gameLoop();
 }
