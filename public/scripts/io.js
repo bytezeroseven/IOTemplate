@@ -37,7 +37,7 @@ document.onclick = onClick;
 window.onresize = onResize;
 
 function onWsOpen() {
-	console.log("WebSocket opened.");
+	addMsg({ text: "WebSocket open.", bg: "blue"});
 	checkLatency();
 	sendNickname();
 	hide();
@@ -56,7 +56,7 @@ function sendNickname() {
 }
 
 function onWsClose() {
-	console.log("WebSocket closed.");
+	addMsg({ text: "WebSocket closed.", bg: "red"});
 }
 
 function onWsMessage(msg) {
@@ -78,7 +78,8 @@ function wsConnect(wsUrl) {
 		ws.close();
 		ws = null;
 	}
-	ws = new WebSocket(wsUrl || "ws://localhost:6969");
+	wsUrl = (location.protocol == "https" ? "wss://" : "ws://") + (wsUrl || "localhost:6969");
+	ws = new WebSocket(wsUrl);
 	ws.onopen = onWsOpen;
 	ws.onmessage = onWsMessage;
 	ws.onclose = onWsClose;
@@ -114,20 +115,45 @@ function handleWsMessage(view) {
 			break;
 		case 10: 
 			let queueLength = view.getFloat32(offset);
+			addLog({ text: "add:"+queueLength, index: 4 });
 			offset += 4;
 			for (let i = 0; i < queueLength; i++) {
 				let nodeId = view.getFloat32(offset);
 				offset += 4;
-				let posX, posY, size, hue;
-				posX = view.getFloat32(offset);
+				let posX, posY, size, hue, nickname;
+				posX = view.getFloat32(offset); offset += 4;
+				posY = view.getFloat32(offset); offset += 4;
+				size = view.getFloat32(offset); offset += 4;
+				hue = view.getUint8(offset++); 
+				nickname = getString();
+				let node = nodes.find(node => node.id == nodeId);
+				if (node) {
+					removeNode(nodeId);
+				}
+				node = new Circle(posX, posY, size);
+				node.id = nodeId;
+				node.hue = hue;
+				node.nickname = nickname;
+				node.nicknameText = new Text();
+				node.nicknameText.setText(nickname);
+				node.nicknameText.render();
+				nodes.push(node);
+				addMsg({ 
+					bg: "black",
+					text: (nickname || "An unnamed cell") + " has joined the petri dish.",
+					duration: 2000,
+				});
+			}
+			queueLength = view.getFloat32(offset);
+			addLog({ text: "update:"+queueLength, index: 5 });
+			offset += 4;
+			for (let i = 0; i < queueLength; i++) {
+				let nodeId = view.getFloat32(offset);
 				offset += 4;
-				posY = view.getFloat32(offset);
-				offset += 4;
-				size = view.getFloat32(offset);
-				offset += 4;
-				hue = view.getUint8(offset);
-				offset++;
-				let nickname = getString();
+				let posX, posY, size;
+				posX = view.getFloat32(offset); offset += 4;
+				posY = view.getFloat32(offset); offset += 4;
+				size = view.getFloat32(offset); offset += 4;
 				let node = nodes.find(node => node.id == nodeId);
 				if (node) {
 					node.updateTime = timestamp;
@@ -136,20 +162,10 @@ function handleWsMessage(view) {
 					node.newX = posX;
 					node.newY = posY;
 					node.newSize = size;
-					node.hue = hue;
-					node.nickname = nickname;
-					let nicknameText = new Text();
-					nicknameText.setText(nickname);
-					nicknameText.render();
-					node.nicknameText = nicknameText;
-				} else {
-					node = new Circle(posX, posY, size);
-					node.id = nodeId;
-					node.hue = hue;
-					nodes.push(node);
 				}
 			}
 			queueLength = view.getFloat32(offset);
+			addLog({ text: "remove:"+queueLength, index: 6 });
 			offset += 4;
 			for (let i = 0; i < queueLength; i++) {
 				let nodeId = view.getFloat32(offset);
@@ -165,7 +181,10 @@ function handleWsMessage(view) {
 			break;
 		case 33: 
 			latency = timestamp - latencyCheckTime;
-			addLog(1, latency+"ms");
+			addLog({ 
+				text: latency+"ms",
+				index: 10
+			});
 			setTimeout(checkLatency, 1000);
 			break;
 		default: 
@@ -303,13 +322,13 @@ function addMsg(args) {
 	msgs.unshift(msg);
 }
 
-function addLog(i, txt) {
+function addLog(args) {
 	let msg = new Text();
-	msg.setText(txt);
+	msg.setText(args.text);
 	msg.setStyle("#f3f3f3", "#333", 3);
 	msg.setFont("bolder 16px Ubuntu");
 	msg.render();
-	logs[i] = msg;
+	logs[args.index] = msg;
 }
 
 function gameLoop() {
@@ -331,21 +350,7 @@ function gameLoop() {
 	nodes.forEach(function(node) {
 		node.updatePos();
 		node.r = node.newSize * 0.1 + node.r * 0.9;
-		function drawNode(x, y) {
-			ctx.beginPath();
-			ctx.arc(x, y, node.r, 0, Math.PI * 2);
-			ctx.closePath();
-			ctx.fillStyle = "hsl("+node.hue+", 100%, 49%)";
-			ctx.strokeStyle = "hsl("+node.hue+", 100%, 38%)";
-			ctx.lineWidth = 10
-			ctx.stroke();
-			ctx.fill();
-			if (node.nicknameText) {
-				ctx.drawImage(node.nicknameText.canvas, x - node.nicknameText.width / 2, y - node.nicknameText.height / 2)
-			}
-		}
-		ctx.globalAlpha = 1;
-		drawNode(node.x, node.y);
+		node.draw();
 		
 	});
 
@@ -360,7 +365,10 @@ function gameLoop() {
 	ctx.drawImage(msgCanvas, 10, 10);
 
 	if (timestamp - lastThroughputTime > 1000) {
-		addLog(0, throughput+"bytes/sec");
+		addLog({ 
+			text: throughput+"bytes/sec", 
+			index: 0 
+		});
 		throughput = 0;
 		lastThroughputTime = timestamp;
 	}
@@ -390,7 +398,7 @@ class Circle {
 		this.nicknameText = null;
 	}
 	updatePos() {
-		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
+		let dt = Math.min((timestamp - this.updateTime) / drawDelay, 1);
 		this.x = this.oldX + (this.newX - this.oldX) * dt;
 		this.y = this.oldY + (this.newY - this.oldY) * dt;
 	}
@@ -401,6 +409,22 @@ class Circle {
 		this.y += this.mouseY / d * speed;
 		this.x = Math.max(Math.min(this.x, gameSize), 0);
 		this.y = Math.max(Math.min(this.y, gameSize), 0);
+	}
+	draw() {
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.beginPath();
+		ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+		ctx.closePath();
+		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
+		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
+		ctx.lineWidth = 5;
+		ctx.fill();
+		ctx.stroke();
+		if (this.nicknameText) {
+			ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2)
+		}
+		ctx.restore();
 	}
 }
 
@@ -414,7 +438,6 @@ class QuadTree {
 		this.nodes = [];
 		this.level = lvl || 0;
 		this.parent = parent;
-		this.num = new Text();
 	}
 	divide() {
 		if (this.level >= 10) return false;
@@ -475,6 +498,7 @@ class QuadTree {
 			for (let i = 0; i < this.nodes.length; i++) this.nodes[i].draw();
 		} else {
 			if (this.w > 30) {
+				if (this.num == null) this.num = new Text();
 				if (this.num.text !== this.items.length) {
 					this.num.setText(this.items.length);
 					this.num.setFont("bolder 30px Ubuntu");
@@ -560,6 +584,8 @@ let latency = 0,
 	canvasHeight = 0,
 	logs = [],
 	msgs = [],
+	leaders = [],
+	drawDelay = 120,
 	qt = new QuadTree(0, 0, 1000, 1000),
 	ws = null,
 	nicknameInput = document.getElementById("nicknameInput"),
