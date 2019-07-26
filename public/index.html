@@ -4,46 +4,53 @@
 	<title>Game.IO Template</title>
 	<link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
 	<link rel="stylesheet" type="text/css" href="styles/io.css">
-	<meta charset="utf-8">
 	<meta name="viewport" content="user-scalable=0,initial-scale=1,maximum-scale=1">
+	<meta charset="utf-8">
 </head>
 <body>
 	<canvas class="overlay" id="gameCanvas"></canvas>
-	<div class="overlay" id="overlay"></div>
+	<div class="overlay" id="mainOverlay">
 	<header>
 		<h1>G69.IO</h1>
 		<h2>The next big (or small) io game!</h2>
 	</header>
-	<div class="container" id="main">
-		<input type="text" id="nicknameInput" placeholder="Name..." spellcheck="false">
-		<button id="playButton">
-			<span>Play</span>
-			<span style="display: none;">Connecting...</span>
-			<span style="display: none;">Connected!</span>
-		</button>
-		<button id="settingButton">Options</button>
-		<div id="settingDiv">
-			<select id="regionSelect">
-				<option value="">Auto</option>
-				<option value="https://g69io.herokuapp.com">America</option>
-			</select>
-			<select id="resolutionSelect">
-				<option>High</option>
-				<option>Medium</option>
-				<option>Low</option>
-			</select>
+	<div id="mainLayout">
+		<div class="container"><img src="images/test-ad.gif"></div>
+		<div class="container">
+			<input type="text" id="nicknameInput" placeholder="Name..." spellcheck="false">
+			<button id="playButton">
+				<span>Play</span>
+				<span style="display: none;">Connecting...</span>
+				<span style="display: none;">Connected!</span>
+			</button>
+			<button id="settingButton">Options</button>
+			<div id="settingDiv">
+				<div><select id="regionSelect">
+					<option value="">Auto</option>
+					<option value="https://g69io.herokuapp.com">America</option>
+				</select></div>
+				<div><select id="resolutionSelect">
+					<option>High</option>
+					<option>Medium</option>
+					<option>Low</option>
+				</select></div>
+				<div>
+					<div><input type="checkbox" id="showQtCb"><label for="showQtCb">Show QT</label></div>
+					<div><input type="checkbox" id="showLogsCb"><label for="showLogsCb">Show Logs</label></div>
+					<div>
+						<div><label for="animDelayRange">Anim delay:<span id="animDelayValue">120</span>ms</label></div>
+						<input type="range" id="animDelayRange" min="50" max="1000" step="10" value="120">
+					</div>
+				</div>
+			</div>
+			<hr>
 			<div>
-				<div><input type="checkbox" id="quickJoinCb"><label for="quickJoinCb">Quick Join</label></div>
-				<div><input type="checkbox" id="noLagCb"><label for="noLagCb">No Lag</label></div>
-				<div><input type="checkbox" id="showLogsCb"><label for="showLogsCb">Show Logs</label></div>
+				<p>Girls go to college to get more knowledge, boys go to jupiter to get more stupider.</p>
+				<h3>How to never miss? Huh?</h3>
+				<p>Hit or miss, I guess they never miss huh? You got a boyfriend I bet he doesn't kiss ya... Muaaahh!</p>
 			</div>
 		</div>
-		<hr>
-		<div>
-			<p>Girls go to college to get more knowledge, boys go to jupiter to get more stupider.</p>
-			<h3>How to never miss? Huh?</h3>
-			<p>Hit or miss, I guess they never miss huh? You got a boyfriend I bet he doesn't kiss ya... Muaaahh!</p>
-		</div>
+		<div class="container"><img src="images/test-ad.gif"></div>
 	</div>
 	<footer>
 		<ul class="social">
@@ -58,6 +65,7 @@
 			<li><a href="docs/changelog.txt">0.0.1</a></li>
 		</ul>
 	</footer>
+	</div>
 	<script type="../shared/utils.js"></script>
 	<script src="scripts/io.js"></script>
 </body>

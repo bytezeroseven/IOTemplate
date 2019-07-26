@@ -1,13 +1,13 @@
 Privacy Policy
 
 1. Cookies
-We don't use cookies. 'Game.IO' is able to provide you with all the neccessary functionalities 
-without reading/writing cookies from/to your browser.
+	We don't use cookies at the moment but we may use them in the future to enhance UX.
 
-2. What do we collect from the user?
-IP address and navigator information are collected to provide the best 
-experience 'Game.IO' is capable of. We don't store nor sell these informations.
+2. What do we collect from the user without their knowledge?
+	Nothing. We only collect information which are directly provided to us by the user.
 
 3. Ads
-We use Google Adsense which could read/cookies to provide targetted ads. For more information 
-visit https://adsense.google.com.
+	We don't use ads at the moment but we may display ads provided by Google Ads Network 
+	in the near future. Google Ads may collect information which are not directly collected
+	by this site to function to provide targetted ads. Google Ads' Privacy Policy is beyond 
+	the scope of this privacy policy.

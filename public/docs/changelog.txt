@@ -1,6 +1,16 @@
 Changelog
 
-24th July, 2019
-	Created changelog.txt
-	Created privacy.txt
-	Created terms.txt
+v0.0.11 (26th July, 2019)
+	- Added new UI
+	- Added region select.
+	- Added ad-spaces with fake ads.
+	- Added settings. 
+	- Updated Terms.
+	- Updated Privacy Policy.
+	- Deployed on Heroku (https://g69io.herokuapp.com)
+	- Dm'ed Sidney De Trees and got a reply! (he was kinda rude)
+
+v0.0.1 (24th July, 2019)
+	- Created changelog.txt
+	- Created privacy.txt
+	- Created terms.txt

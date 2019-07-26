@@ -9,10 +9,7 @@ function onResize() {
 }
 
 function onKeyUp(evt) {
-	if (evt.keyCode == 27) {
-		if (main.getBoundingClientRect().width == 0) show();
-		else hide();
-	}
+	if (evt.keyCode == 27) toggleEle(mainOverlay);
 	if (evt.key.toLowerCase() == "j") sendUint8(ws, 255);
 }
 
@@ -45,6 +42,7 @@ function onWsOpen() {
 	addMsg({ text: "WebSocket open", bg: "blue", duration: 10E3});
 	checkLatency();
 	sendNickname();
+	hideEle(playButton.children[0]);
 	hideEle(playButton.children[1]);
 	showEle(playButton.children[2]);
 	hide();
@@ -287,12 +285,12 @@ function hideCanvas() {
 }
 
 function show() {
-	main.style.display = "block";
+	showEle(mainOverlay);
 	hideCanvas();
 }
 
 function hide() {
-	main.style.display = "none";
+	hideEle(mainOverlay)
 	showCanvas();
 }
 
@@ -398,7 +396,7 @@ function gameLoop() {
 	ctx.fillStyle = ctx.createPattern(gridCanvas, "repeat");
 	ctx.fillRect(-canvasWidth / 2 + nodeX, -canvasHeight / 2 + nodeY, canvasWidth, canvasHeight);
 
-	qt.draw();
+	if (showQtCb.checked) qt.draw();
 
 	nodes.sort((a, b) => {
 		let x = a.r - b.r;
@@ -465,7 +463,7 @@ class Circle {
 		this.nicknameText = null;
 	}
 	updatePos() {
-		let dt = Math.min((timestamp - this.updateTime) / drawDelay, 1);
+		let dt = Math.min((timestamp - this.updateTime) / animDelay, 1);
 		this.x = this.oldX + (this.newX - this.oldX) * dt;
 		this.y = this.oldY + (this.newY - this.oldY) * dt;
 	}
@@ -656,17 +654,14 @@ let latency = 0,
 	logs = [],
 	msgs = [],
 	lbNames = [],
-	drawDelay = 120,
+	animDelay = 120,
 	qt = new QuadTree(0, 0, 0, 0),
 	ws = null,
 	nodeX = 0,
 	nodeY = 0,
 	nicknameInput = document.getElementById("nicknameInput"),
 	playButton = document.getElementById("playButton"),
-	main = document.getElementById("main"),
-	overlay = document.getElementById("overlay"),
-	header = document.querySelector("header"),
-	footer = document.querySelector("footer"),
+	mainOverlay = document.getElementById("mainOverlay"),
 	gameCanvas = document.getElementById("gameCanvas"),
 	ctx = gameCanvas.getContext("2d"),
 	gridCanvas = document.createElement("canvas"),
@@ -676,7 +671,10 @@ let latency = 0,
 	regionSelect = document.getElementById("regionSelect"),
 	settingButton = document.getElementById("settingButton"),
 	settingDiv = document.getElementById("settingDiv"),
-	showLogsCb = document.getElementById("showLogsCb");
+	showLogsCb = document.getElementById("showLogsCb"),
+	showQtCb = document.getElementById("showQtCb"),
+	animDelayRange = document.getElementById("animDelayRange"),
+	animDelayValue = document.getElementById("animDelayValue");
 
 function showEle(ele) {
 	ele.style.display = "block";
@@ -693,6 +691,11 @@ function toggleEle(ele) {
 
 settingButton.onclick = function () {
 	toggleEle(settingDiv);
+}
+
+animDelayRange.onchange = animDelayRange.oninput = function () {
+	animDelay = animDelayRange.value;
+	animDelayValue.innerText = animDelay;
 }
 
 regionSelect.onchange = function () {
