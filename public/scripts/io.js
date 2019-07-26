@@ -276,22 +276,12 @@ function play() {
 	wsConnect(regionSelect.selectedOptions[0].value || location.origin);
 }
 
-function showCanvas() {
-	gameCanvas.style.zIndex = 999;
-}
-
-function hideCanvas() {
-	gameCanvas.style.zIndex = -1;
-}
-
 function show() {
 	showEle(mainOverlay);
-	hideCanvas();
 }
 
 function hide() {
-	hideEle(mainOverlay)
-	showCanvas();
+	hideEle(mainOverlay);
 }
 
 function renderLogs() {

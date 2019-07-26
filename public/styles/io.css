@@ -156,4 +156,5 @@ button:active {
 #mainLayout {
 	display: table;
 	margin: 0 auto;
+	z-index: 999;
 }
