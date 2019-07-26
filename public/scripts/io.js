@@ -41,9 +41,12 @@ function removeNode(node) {
 }
 
 function onWsOpen() {
+	console.log("Connected!")
 	addMsg({ text: "WebSocket open", bg: "blue", duration: 10E3});
 	checkLatency();
 	sendNickname();
+	hideEle(playButton.children[1]);
+	showEle(playButton.children[2]);
 	hide();
 }
 
@@ -75,6 +78,7 @@ function onWsMessage(msg) {
 }
 
 function wsConnect(wsUrl) {
+	console.log("Connecting to "+wsUrl+"...");
 	if (ws) {
 		ws.onmessage = null;
 		ws.onopen = null;
@@ -83,7 +87,7 @@ function wsConnect(wsUrl) {
 		ws.close();
 		ws = null;
 	}
-	wsUrl = (wsUrl || location.origin).replace(/^http/, "ws");
+	wsUrl = wsUrl.replace(/^http/, "ws");
 	ws = new WebSocket(wsUrl);
 	ws.onopen = onWsOpen;
 	ws.onmessage = onWsMessage;
@@ -268,7 +272,10 @@ function sendMousePos() {
 }
 
 function play() {
-	wsConnect(regionSelect.selectedOptions[0].value);
+	playButton.disabled = true;
+	hideEle(playButton.children[0]);
+	showEle(playButton.children[1]);
+	wsConnect(regionSelect.selectedOptions[0].value || location.origin);
 }
 
 function showCanvas() {
@@ -356,7 +363,7 @@ function renderLb() {
 function addMsg(args) {
 	let msg = new Text();
 	msg.setText(args.text);
-	msg.setFont("bold 16px Ubuntu");
+	msg.setFont("bold 16px Arial");
 	msg.setStyle("#f3f3f3", "#333", 3, args.bg);
 	msg.render();
 	msg.duration = args.duration;
@@ -368,7 +375,7 @@ function addLog(args) {
 	let msg = new Text();
 	msg.setText(args.text);
 	msg.setStyle("#f3f3f3", "#666", 3, "black");
-	msg.setFont("bolder 14px Ubuntu");
+	msg.setFont("bolder 14px Arial");
 	msg.render();
 	logs[args.index] = msg;
 }
@@ -426,8 +433,12 @@ function gameLoop() {
 		});
 	}
 
-	renderLogs();
-	ctx.drawImage(logCanvas, 2, canvasHeight-logCanvas.height-5);
+	if (showLogsCb.checked) {
+		renderLogs();
+		ctx.drawImage(logCanvas, 2, canvasHeight-logCanvas.height-5);
+	}
+	
+	
 	renderLb();
 	ctx.drawImage(lbCanvas, canvasWidth - lbCanvas.width-10, 10);
 
@@ -561,7 +572,7 @@ class QuadTree {
 				if (this.num == null) this.num = new Text();
 				if (this.num.text !== this.items.length) {
 					this.num.setText(this.items.length);
-					this.num.setFont("bolder 30px Ubuntu");
+					this.num.setFont("bolder 30px Arial");
 					this.num.setStyle("#f3f3f3", "#333", 3);
 					this.num.render();
 				}
@@ -586,7 +597,7 @@ class Text {
 	constructor() {
 		this.canvas = document.createElement("canvas");
 		this.setText("");
-		this.setFont("bolder 20px Ubuntu");
+		this.setFont("bolder 20px Arial");
 		this.setStyle("#fff", "#000", 3);
 	}
 	setText(txt) {
@@ -652,7 +663,7 @@ let latency = 0,
 	nodeY = 0,
 	nicknameInput = document.getElementById("nicknameInput"),
 	playButton = document.getElementById("playButton"),
-	main = document.querySelector(".main"),
+	main = document.getElementById("main"),
 	overlay = document.getElementById("overlay"),
 	header = document.querySelector("header"),
 	footer = document.querySelector("footer"),
@@ -662,7 +673,34 @@ let latency = 0,
 	lbCanvas = document.createElement("canvas"),
 	msgCanvas = document.createElement("canvas"),
 	logCanvas = document.createElement("canvas"),
-	regionSelect = document.getElementById("regionSelect");
+	regionSelect = document.getElementById("regionSelect"),
+	settingButton = document.getElementById("settingButton"),
+	settingDiv = document.getElementById("settingDiv"),
+	showLogsCb = document.getElementById("showLogsCb");
+
+function showEle(ele) {
+	ele.style.display = "block";
+}
+
+function hideEle(ele) {
+	ele.style.display = "none";
+}
+
+function toggleEle(ele) {
+	if (ele.getBoundingClientRect().height > 0) hideEle(ele);
+	else showEle(ele);
+}
+
+settingButton.onclick = function () {
+	toggleEle(settingDiv);
+}
+
+regionSelect.onchange = function () {
+	playButton.disabled = false;
+	showEle(playButton.children[0]);
+	hideEle(playButton.children[1]);
+	hideEle(playButton.children[2]);
+}
 
 window.onload = function() {
 	onResize();

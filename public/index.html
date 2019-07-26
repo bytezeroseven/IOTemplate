@@ -2,7 +2,7 @@
 <html>
 <head>
 	<title>Game.IO Template</title>
-	<link href="https://fonts.googleapis.com/css?family=Ubuntu&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
 	<link rel="stylesheet" type="text/css" href="styles/io.css">
 	<meta charset="utf-8">
 	<meta name="viewport" content="user-scalable=0,initial-scale=1,maximum-scale=1">
@@ -11,17 +11,39 @@
 	<canvas class="overlay" id="gameCanvas"></canvas>
 	<div class="overlay" id="overlay"></div>
 	<header>
-		<h1>Game.IO</h1>
-		<h6>The next big (or small) io game</h6>
+		<h1>G69.IO</h1>
+		<h2>The next big (or small) io game!</h2>
 	</header>
-	<div class="main">
-		<input type="text" id="nicknameInput" placeholder="Name...">
-		<input type="button" id="playButton" value="Play">
-		<select id="regionSelect">
-			<option value="">Default</option>
-			<option value="https://g69io.herokuapp.com">America</option>
-		</select>
-		<p>Girls go to college to get more knowledge, boys go to jupiter to get more stupider.</p>
+	<div class="container" id="main">
+		<input type="text" id="nicknameInput" placeholder="Name..." spellcheck="false">
+		<button id="playButton">
+			<span>Play</span>
+			<span style="display: none;">Connecting...</span>
+			<span style="display: none;">Connected!</span>
+		</button>
+		<button id="settingButton">Options</button>
+		<div id="settingDiv">
+			<select id="regionSelect">
+				<option value="">Auto</option>
+				<option value="https://g69io.herokuapp.com">America</option>
+			</select>
+			<select id="resolutionSelect">
+				<option>High</option>
+				<option>Medium</option>
+				<option>Low</option>
+			</select>
+			<div>
+				<div><input type="checkbox" id="quickJoinCb"><label for="quickJoinCb">Quick Join</label></div>
+				<div><input type="checkbox" id="noLagCb"><label for="noLagCb">No Lag</label></div>
+				<div><input type="checkbox" id="showLogsCb"><label for="showLogsCb">Show Logs</label></div>
+			</div>
+		</div>
+		<hr>
+		<div>
+			<p>Girls go to college to get more knowledge, boys go to jupiter to get more stupider.</p>
+			<h3>How to never miss? Huh?</h3>
+			<p>Hit or miss, I guess they never miss huh? You got a boyfriend I bet he doesn't kiss ya... Muaaahh!</p>
+		</div>
 	</div>
 	<footer>
 		<ul class="social">
@@ -31,9 +53,9 @@
 			<li><a href="#">Twitter</a></li>
 		</ul>
 		<ul class="links">
-			<li><a href="texts/privacy.txt">Privacy</a></li>
-			<li><a href="texts/terms.txt">Terms</a></li>
-			<li><a href="texts/changelog.txt">0.0.2</a></li>
+			<li><a href="docs/privacy.txt">Privacy</a></li>
+			<li><a href="docs/terms.txt">Terms</a></li>
+			<li><a href="docs/changelog.txt">0.0.1</a></li>
 		</ul>
 	</footer>
 	<script type="../shared/utils.js"></script>
