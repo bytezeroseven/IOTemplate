@@ -10,6 +10,7 @@ body {
 	font-size: 17px;
 	font-weight: 100;
 	overflow: hidden;
+	user-select: none;
 }
 
 img {
@@ -42,7 +43,7 @@ header h2 {
 
 footer {
 	width: 100%;
-	position: fixed;
+	position: absolute;
 	bottom: 0;
 }
 
@@ -87,7 +88,7 @@ a {
 
 a:hover {
 	color: blue;
-	text-decoration: underline !important;
+	/*text-decoration: underline !important;*/
 }
 
 a:visited {
@@ -138,26 +139,32 @@ button:active {
 	width: 100%;
 	height: 100%;
 	position: absolute;
-	background: rgba(0, 0, 0, 0.3);
 	top: 0;
 	left: 0;
 }
 
+#mainOverlay {
+	background: rgba(0, 0, 0, 0.3);
+}
+
 .container {
 	display: inline-block;
-	max-width: 310px;
 	padding: 10px;
 	background: #fff;
-	box-shadow: 0 10px #f0f0f0;
 	color: #a4a4a4;
-	max-height: 290px;
+	box-shadow: 0 10px #f0f0f0;
+	margin-bottom: 20px;
+}
+
+#mainLayout .container {
 	overflow-y: auto;
+	max-width: 310px;
+	max-height: 290px;
 	margin-left: 5px;
 	float: left;
 }
 
-#mainLayout {
+.center {
 	display: table;
 	margin: 0 auto;
-	z-index: 999;
 }
