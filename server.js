@@ -87,6 +87,18 @@ function gameTick() {
 			qt.remove(node);
 			qt.insert(node);
 		}
+		if(!node.isPlayer) return;
+		qt.query({ x: node.x - node.r * 2, y: node.y - node.r * 2, w: node.r * 4, h: node.r * 4 }, function(other) {
+			if (other.isPlaying == false) return;
+			let d = Math.hypot(other.x - node.x, node.y - other.y);
+			if (d < node.r + other.r) {
+				if (node.r > other.r * 1.2 && d < node.r - other.r * 0.45) {
+					node.r += Math.sqrt(other.r);
+					other.r = 0;
+					removeNode(other);
+				} 
+			}
+		})
 	});
 	let newLbNames = players.sort((a, b) => b.r - a.r).map(a => a.nickname);
 	newLbNames = newLbNames.slice(0, Math.min(10, newLbNames.length));
@@ -111,7 +123,6 @@ function gameTick() {
 			lbNames == newLbNames && sendMsg(node.ws, lbNamesView);
 		}
 	});
-	removedNodes = [];
 }
 
 /* 

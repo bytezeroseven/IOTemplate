@@ -7,6 +7,9 @@ function onResize() {
 	gameCanvas.width = canvasWidth;
 	gameCanvas.height = canvasHeight;
 	scale = Math.min(innerWidth / width, innerHeight / height);
+	mainOverlay.style.width = innerWidth / scale + "px";
+	mainOverlay.style.height = innerHeight / scale + "px";
+	mainOverlay.style.transform = "translate(-50%, -50%) scale(" + scale + ") translate(50%, 50%)";
 }
 
 function onKeyUp(evt) {
@@ -156,13 +159,6 @@ function handleWsMessage(view) {
 					node.newX = posX;
 					node.newY = posY;
 					node.newSize = size;
-					/*
-					// Not necessary on the client
-					if (node._qtNode && node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
-					} else {
-						qt.remove(node);
-						qt.insert(node);
-					}*/
 				}
 			}
 			numRemovedNodes = view.getUint16(offset); 
@@ -328,7 +324,7 @@ function addLog(args) {
 function gameLoop() {
 	timestamp = +Date.now();
 	ctx.fillStyle = "#bbb";
-	ctx.fillRect(0, 0, width, height);
+	ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
 	ctx.save();
 
@@ -538,7 +534,7 @@ class Circle {
 			this.x = this.newX;
 			this.y = this.newY;
 		} else {
-			let dt = Math.min((timestamp - this.updateTime) / animDelay, 1);
+			let dt = Math.max(0, Math.min((timestamp - this.updateTime) / animDelay, 1));
 			this.x = this.oldX + (this.newX - this.oldX) * dt;
 			this.y = this.oldY + (this.newY - this.oldY) * dt;
 		}
@@ -745,8 +741,8 @@ let latency = 0,
 	nodes = [],
 	mouseX = 0,
 	mouseY = 0,
-	width = 1920,
-	height = 1080,
+	width = 1600,
+	height = 900,
 	scale = 1,
 	canvasWidth = 0,
 	canvasHeight = 0,
@@ -765,6 +761,9 @@ let latency = 0,
 	playButton = document.getElementById("playButton"),
 	mainOverlay = document.getElementById("mainOverlay"),
 	gameCanvas = document.getElementById("gameCanvas"),
+	mainLayout = document.getElementById("mainLayout"),
+	header = document.querySelector("header"),
+	footer = document.querySelector("footer"),
 	ctx = gameCanvas.getContext("2d"),
 	gridCanvas = document.createElement("canvas"),
 	lbCanvas = document.createElement("canvas"),

@@ -7,7 +7,7 @@ body {
 	margin: 0;
 	padding: 0;
 	font-family: 'Press Start 2P', Arial;
-	font-size: 17px;
+	font-size: 20px;
 	font-weight: 100;
 	overflow: hidden;
 	user-select: none;
@@ -88,7 +88,7 @@ a {
 
 a:hover {
 	color: blue;
-	/*text-decoration: underline !important;*/
+	text-decoration: none !important;
 }
 
 a:visited {
@@ -96,7 +96,7 @@ a:visited {
 }
 
 input, button, select {
-	font-size: 18px;
+	font-size: inherit;
 	padding: 5px;
 	outline: 0;
 	font-family: inherit;
@@ -167,4 +167,8 @@ button:active {
 .center {
 	display: table;
 	margin: 0 auto;
+}
+
+.ad {
+	background: #eee;
 }
