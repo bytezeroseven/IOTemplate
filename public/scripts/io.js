@@ -1,5 +1,6 @@
 
 
+
 function onResize() {
 	canvasWidth = innerWidth;
 	canvasHeight = innerHeight;
@@ -19,7 +20,9 @@ function onMouseMove(evt) {
 	sendMousePos();
 }
 
-function onClick() { }
+function onClick(evt) { 
+	if (evt.target == mainOverlay) hideEle(mainOverlay);
+}
 
 document.onmousemove = onMouseMove;
 document.onkeyup = onKeyUp;
@@ -45,7 +48,7 @@ function onWsOpen() {
 	hideEle(playButton.children[0]);
 	hideEle(playButton.children[1]);
 	showEle(playButton.children[2]);
-	hide();
+	hideEle(mainOverlay);
 }
 
 function checkLatency() {
@@ -121,36 +124,27 @@ function handleWsMessage(view) {
 			});
 			break;
 		case 10: 
-			let queueLength = view.getFloat32(offset);
-			let packageInfo = [queueLength];
-			offset += 4;
-			for (let i = 0; i < queueLength; i++) {
-				let nodeId = view.getFloat32(offset);
-				offset += 4;
-				let posX, posY, size, hue, nickname;
-				posX = view.getFloat32(offset); offset += 4;
-				posY = view.getFloat32(offset); offset += 4;
-				size = view.getFloat32(offset); offset += 4;
-				hue = view.getUint8(offset++); 
+			let nodeId, posX, posY, size, colorHue, nickname;
+			function readCommonData() {
+				nodeId = view.getFloat32(offset); offset += 4;
+				posX = view.getInt16(offset);   offset += 2;
+				posY = view.getInt16(offset);   offset += 2;
+				size = view.getInt16(offset);   offset += 2;
+			}
+			numAddedNodes = view.getUint16(offset); offset += 2;
+			for (let i = 0; i < numAddedNodes; i++) {
+				readCommonData();
+				colorHue = view.getUint8(offset++); 
 				nickname = getString();
-				let node = nodes.find(node => node.id == nodeId);
-				if (node) removeNode(node);
-				node = new Circle(posX, posY, size);
+				let node = new Circle(posX, posY, size);
 				node.id = nodeId;
-				node.hue = hue;
+				node.hue = colorHue;
 				node.nickname = nickname;
 				addNode(node);
 			}
-			queueLength = view.getFloat32(offset);
-			packageInfo.push(queueLength);
-			offset += 4;
-			for (let i = 0; i < queueLength; i++) {
-				let nodeId = view.getFloat32(offset);
-				offset += 4;
-				let posX, posY, size;
-				posX = view.getFloat32(offset); offset += 4;
-				posY = view.getFloat32(offset); offset += 4;
-				size = view.getFloat32(offset); offset += 4;
+			numUpdatedNodes = view.getUint16(offset); offset += 2;
+			for (let i = 0; i < numUpdatedNodes; i++) {
+				readCommonData();
 				let node = nodes.find(node => node.id == nodeId);
 				if (node) {
 					node.updateTime = timestamp;
@@ -159,25 +153,22 @@ function handleWsMessage(view) {
 					node.newX = posX;
 					node.newY = posY;
 					node.newSize = size;
-					if (node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
+					if (node._qtNode && node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
 					} else {
 						qt.remove(node);
 						qt.insert(node);
 					}
 				}
 			}
-			queueLength = view.getFloat32(offset);
-			packageInfo.push(queueLength);
-			offset += 4;
-			for (let i = 0; i < queueLength; i++) {
-				let nodeId = view.getFloat32(offset);
-				offset += 4;
+			numRemovedNodes = view.getUint16(offset); offset += 2;
+			for (let i = 0; i < numRemovedNodes; i++) {
+				nodeId = view.getFloat32(offset); offset += 4;
 				let node = nodes.find(node => node.id == nodeId);
 				removeNode(node);
 			}
 			addLog({
 				index: 2,
-				text: packageInfo.join("/")+" (add/update/remove)",
+				text: numAddedNodes+"/"+numUpdatedNodes+"/"+numRemovedNodes+" (add/update/remove)",
 			});
 			break;
 		case 20: 
@@ -193,15 +184,16 @@ function handleWsMessage(view) {
 			}
 			break;
 		case 12: 
-			gameSize = view.getFloat32(offset);
+			gameSize = view.getInt16(offset);
 			qt = new QuadTree(0, 0, gameSize, gameSize);
 			nodes.forEach(node => qt.insert(node));
 			break;
 		case 13: 
-			nodeId = view.getFloat32(offset);
+			screenNodeId = view.getFloat32(offset);
 			break;
 		case 33: 
 			latency = timestamp - latencyCheckTime;
+			timestamp = Date.now();
 			addLog({ 
 				text: "Latency: "+latency+"ms",
 				index: 10
@@ -246,10 +238,17 @@ function sendString(ws, str) {
 	sendMsg(ws, view);
 }
 
-function sendFloat32(ws, msgId, float) {
-	let view = prepareMsg(1+4);
+function sendFloat32(ws, msgId, data) {
+	let view = prepareMsg(5);
 	view.setUint8(0, msgId);
-	view.setFloat32(1, float);
+	view.setFloat32(1, data);
+	sendMsg(ws, view);
+}
+
+function sendInt16(ws, msgId, data) {
+	let view = prepareMsg(3);
+	view.setUint8(0, msgId);
+	view.setUint16(1, data);
 	sendMsg(ws, view);
 }
 
@@ -274,14 +273,6 @@ function play() {
 	hideEle(playButton.children[0]);
 	showEle(playButton.children[1]);
 	wsConnect(regionSelect.selectedOptions[0].value || location.origin);
-}
-
-function show() {
-	showEle(mainOverlay);
-}
-
-function hide() {
-	hideEle(mainOverlay);
 }
 
 function renderLogs() {
@@ -375,7 +366,7 @@ function gameLoop() {
 
 	ctx.save();
 
-	let node = nodes.find(node => node.id == nodeId);
+	let node = nodes.find(node => node.id == screenNodeId);
 	if (node) {
 		nodeX = node.x;
 		nodeY = node.y;
@@ -410,7 +401,7 @@ function gameLoop() {
 
 	if (timestamp - lastTime > 1000) {
 		addLog({ 
-			text: "Throughput: "+throughput+" B/s", 
+			text: "Throughput: "+(throughput>1024?(throughput/1024).toFixed(2)+"k":throughput)+"B/s", 
 			index: 0 
 		});
 		throughput = 0;
@@ -425,8 +416,7 @@ function gameLoop() {
 		renderLogs();
 		ctx.drawImage(logCanvas, 2, canvasHeight-logCanvas.height-5);
 	}
-	
-	
+
 	renderLb();
 	ctx.drawImage(lbCanvas, canvasWidth - lbCanvas.width-10, 10);
 
@@ -453,9 +443,14 @@ class Circle {
 		this.nicknameText = null;
 	}
 	updatePos() {
-		let dt = Math.min((timestamp - this.updateTime) / animDelay, 1);
-		this.x = this.oldX + (this.newX - this.oldX) * dt;
-		this.y = this.oldY + (this.newY - this.oldY) * dt;
+		if (animWithTimeCb.checked) {
+			let dt = Math.min((timestamp - this.updateTime) / animDelay, 1);
+			this.x = this.oldX + (this.newX - this.oldX) * dt;
+			this.y = this.oldY + (this.newY - this.oldY) * dt;
+		} else {
+			this.x += (this.newX - this.x) * 0.1;
+			this.y += (this.newY - this.y) * 0.1;
+		}
 	}
 	move() {
 		let d = Math.hypot(this.mouseX, this.mouseY) || 1;
@@ -632,7 +627,7 @@ let latency = 0,
 	throughput = 0,
 	timestamp = 0,
 	gameSize = 0,
-	nodeId = null,
+	screenNodeId = null,
 	nodes = [],
 	mouseX = 0,
 	mouseY = 0,
@@ -649,6 +644,9 @@ let latency = 0,
 	ws = null,
 	nodeX = 0,
 	nodeY = 0,
+	numAddedNodes = 0,
+	numUpdatedNodes = 0,
+	numRemovedNodes = 0,
 	nicknameInput = document.getElementById("nicknameInput"),
 	playButton = document.getElementById("playButton"),
 	mainOverlay = document.getElementById("mainOverlay"),
@@ -664,7 +662,8 @@ let latency = 0,
 	showLogsCb = document.getElementById("showLogsCb"),
 	showQtCb = document.getElementById("showQtCb"),
 	animDelayRange = document.getElementById("animDelayRange"),
-	animDelayValue = document.getElementById("animDelayValue");
+	animDelayValue = document.getElementById("animDelayValue"),
+	animWithTimeCb = document.getElementById("animWithTimeCb");
 
 function showEle(ele) {
 	ele.style.display = "block";
