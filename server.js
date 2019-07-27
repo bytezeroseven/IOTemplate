@@ -26,7 +26,6 @@ function onWsConnection(ws, req) {
 	}
 
 	function onWsClose() {
-		qt.remove(node);
 		removeNode(node);
 	}	
 
@@ -40,7 +39,7 @@ function onWsConnection(ws, req) {
 	ws.onmessage = onWsMessage;
 	ws.onclose = onWsClose;
 
-	sendFloat32(ws, 12, gameSize);
+	sendInt16(ws, 12, gameSize);
 	sendFloat32(ws, 13, node.id);
 
 	function handleWsMessage(view) {
@@ -133,6 +132,13 @@ function sendFloat32(ws, msgId, float) {
 	let view = prepareMsg(5);
 	view.setUint8(0, msgId);
 	view.setFloat32(1, float);
+	sendMsg(ws, view);
+}
+
+function sendInt16(ws, msgId, data) {
+	let view = prepareMsg(3);
+	view.setUint8(0, msgId);
+	view.setUint16(1, data);
 	sendMsg(ws, view);
 }
 
@@ -242,38 +248,45 @@ class Circle {
 	getNodesPackage() {
 		function setCommonData(node) {
 			view.setFloat32(offset, node.id); offset += 4;
-			view.setFloat32(offset, node.x);  offset += 4;
-			view.setFloat32(offset, node.y);  offset += 4;
-			view.setFloat32(offset, node.r);  offset += 4;
+			view.setInt16(offset, node.x);  offset += 2;
+			view.setInt16(offset, node.y);  offset += 2;
+			view.setInt16(offset, node.r);  offset += 2;
 		}
 		let nicknameBytes = 0;
 		this.addedNodes.forEach(node => (nicknameBytes += node.nickname.length+1));
 		let view = prepareMsg(
-			1+4*3+
-			this.addedNodes.length*(4+4+4+4+1)+
+			1+2*3+
+			this.addedNodes.length*(4+2+2+2+1)+
 			nicknameBytes+
-			this.updatedNodes.length*(4+4+4+4)+
+			this.updatedNodes.length*(4+2+2+2)+
 			this.removedNodes.length*4
 		);
 		let offset = 0;
 		view.setUint8(offset++, 10);
-		view.setFloat32(offset, this.addedNodes.length);
-		offset += 4;
+		view.setUint16(offset, this.addedNodes.length);
+		offset += 2;
 		this.addedNodes.forEach(node => {
 			setCommonData(node);
 			view.setUint8(offset++, node.hue);
 			offset = writeString(view, offset, node.nickname);
 		});
-		view.setFloat32(offset, this.updatedNodes.length);
-		offset += 4;
-		this.updatedNodes.forEach(node => {
-			setCommonData(node);
+		let numOffset = offset;
+		view.setUint16(offset, this.updatedNodes.length); offset += 2;
+		this.updatedNodes.forEach(node => { 
+			setCommonData(node); 
 		});
-		view.setFloat32(offset, this.removedNodes.length);
-		offset += 4;
-		this.removedNodes.forEach(node => {
-			view.setFloat32(offset, node.id); offset += 4;
+		view.setUint16(offset, this.removedNodes.length); offset += 2;
+		this.removedNodes.forEach(node => { 
+			view.setFloat32(offset, node.id); 
+			offset += 4; 
 		});
+		if (this.fuckthisshit==null) (this.fuckthisshit = view.byteLength) && 
+			console.log(view.byteLength, 
+				this.addedNodes.length, 
+				this.updatedNodes.length, 
+				this.removedNodes.length,
+				numOffset
+			);
 		return view;
 	}
 }
@@ -391,18 +404,35 @@ wss.on("connection", onWsConnection);
 setInterval(ping, 3E4);
 setInterval(gameTick, 1E3/20);
 
-let gameSize = 1000;
+let gameSize = 2000;
 let nodes = [];
 let qt = new QuadTree(0, 0, gameSize, gameSize);
 let lbNames = [];
 let lbNamesView = prepareMsg(0);
 
-for (let i = 0; i < 15; i++) {
+for (let i = 0; i < 30; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
-		Math.random() * gameSize / 2, 
+		Math.random() * gameSize, 
 		Math.random() * 10+30
 	);
-	node.nickname = "afk"+String.fromCharCode(~~(Math.random() * 127)).repeat(5);
+	function move() {
+		setTimeout(() => {
+			node.mouseX = Math.random() * 1920 - 1920/2;
+			node.mouseY = Math.random() * 1080 - 540;
+			move();
+		}, 1000);
+	}
+	move();
+	node.nickname = "cell"+String.fromCharCode(~~(Math.random() * 127)).repeat(5);
+	addNode(node);
+}
+
+for (let i = 0; i < 100; i++) {
+	let node = new Circle(
+		Math.random() * gameSize, 
+		Math.random() * gameSize, 
+		Math.random() * 5+3
+	);
 	addNode(node);
 }
