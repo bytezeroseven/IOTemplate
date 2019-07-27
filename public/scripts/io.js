@@ -595,7 +595,24 @@ class Circle {
 		return view;
 	}
 	draw() {
-		
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.beginPath();
+		ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+		ctx.closePath();
+		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
+		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
+		ctx.lineWidth = 5;
+		ctx.fill();
+		ctx.stroke();
+		if (this.nicknameText == null) this.nicknameText = new Text();
+		if (this.nickname && this.nicknameText.text != this.nickname) {
+			this.nicknameText.setStyle("#fff", "#333", 3);
+			this.nicknameText.setText(this.nickname);
+			this.nicknameText.render();
+		}
+		if (this.nicknameText) ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
+		ctx.restore();
 	}
 }
 
