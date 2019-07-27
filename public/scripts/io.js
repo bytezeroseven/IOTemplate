@@ -41,7 +41,7 @@ function removeNode(node) {
 }
 
 function onWsOpen() {
-	console.log("Connected!")
+	console.log("Connected!");
 	addMsg({ text: "WebSocket open", bg: "blue", duration: 10E3});
 	checkLatency();
 	sendNickname();
@@ -51,19 +51,11 @@ function onWsOpen() {
 	hideEle(mainOverlay);
 }
 
-function checkLatency() {
-	sendUint8(ws, 33);
-	latencyCheckTime = timestamp;
-}
-
-function sendNickname() {
-	let view = prepareMsg(1+nicknameInput.value.length+1);
-	view.setUint8(0, 49);
-	writeString(view, 1, nicknameInput.value);
-	sendMsg(ws, view);
-}
-
 function onWsClose() {
+	console.log("Disconnected. Reconnecting in 5 seconds...");
+	reconnect = setTimeout(function () { 
+		wsConnect(oldWsUrl); 
+	}, 5e3);
 	addMsg({ text: "WebSocket closed", bg: "red", duration: 10E3});
 }
 
@@ -79,13 +71,18 @@ function onWsMessage(msg) {
 }
 
 function wsConnect(wsUrl) {
-	console.log("Connecting to "+wsUrl+"...");
+	console.log("Connecting to " + wsUrl + "...");
+	oldWsUrl = wsUrl;
+	clearTimeout(reconnect);
+	reconnect = null;
 	if (ws) {
 		ws.onmessage = null;
 		ws.onopen = null;
 		ws.onclose = null;
 		ws.onerror = null;
-		ws.close();
+		try {
+			ws.close();
+		} catch (e) { }
 		ws = null;
 	}
 	wsUrl = wsUrl.replace(/^http/, "ws");
@@ -93,7 +90,7 @@ function wsConnect(wsUrl) {
 	ws.onopen = onWsOpen;
 	ws.onmessage = onWsMessage;
 	ws.onclose = onWsClose;
-	ws.onerror = function error() {
+	ws.onerror = function () {
 		console.log("websocket error");
 	}
 	nodes = [];
@@ -103,6 +100,7 @@ function wsConnect(wsUrl) {
 	lastTime = 0;
 	msgs = [];
 	logs = [];
+	lbNames = [];
 }
 
 function handleWsMessage(view) {
@@ -205,56 +203,15 @@ function handleWsMessage(view) {
 	}
 }
 
-function prepareMsg(byteLength) {
-	return new DataView(new ArrayBuffer(byteLength))
+function checkLatency() {
+	sendUint8(ws, 33);
+	latencyCheckTime = timestamp;
 }
 
-function sendMsg(ws, view) {
-	if (!isWsOpen()) return false;
-	ws.send(view.buffer);
-	throughput += view.byteLength;
-}
-
-function isWsOpen() {
-	return ws && ws.readyState == WebSocket.OPEN;
-}
-
-function writeString(view, offset, str) {
-	let i = 0;
-	while (i < str.length) {
-		let code = str.charCodeAt(i++);
-		if(code > 255) continue;
-		view.setUint8(offset++, code);
-	}
-	view.setUint8(offset++, 0)
-	return offset;
-}
-
-function sendString(ws, str) {
-	let view = prepareMsg(1+str.length+1);
-	let offset = 0;
-	view.setUint8(offset++, 23);
-	offset = writeString(view, offset, str);
-	sendMsg(ws, view);
-}
-
-function sendFloat32(ws, msgId, data) {
-	let view = prepareMsg(5);
-	view.setUint8(0, msgId);
-	view.setFloat32(1, data);
-	sendMsg(ws, view);
-}
-
-function sendInt16(ws, msgId, data) {
-	let view = prepareMsg(3);
-	view.setUint8(0, msgId);
-	view.setUint16(1, data);
-	sendMsg(ws, view);
-}
-
-function sendUint8(ws, int) {
-	let view = prepareMsg(1);
-	view.setUint8(0, int);
+function sendNickname() {
+	let view = prepareMsg(1+nicknameInput.value.length+1);
+	view.setUint8(0, 49);
+	writeString(view, 1, nicknameInput.value);
 	sendMsg(ws, view);
 }
 
@@ -423,6 +380,118 @@ function gameLoop() {
 	requestAnimationFrame(gameLoop);
 }
 
+class Text {
+	constructor() {
+		this.canvas = document.createElement("canvas");
+		this.setText("");
+		this.setFont("bolder 20px Arial");
+		this.setStyle("#fff", "#000", 3);
+	}
+	setText(txt) {
+		this.text = txt;
+	}
+	setFont(fontStr) {
+		this.fontStr = fontStr;
+		this.fontSize = parseInt(fontStr.replace(/[^0-9]/g, ""));
+	}
+	setStyle(fill, stroke, lw, bg) {
+		this.fill = fill;
+		this.stroke = stroke || false;
+		this.lw = lw || 0;
+		this.bg = bg || false;
+	}
+	render() {
+		let ctx = this.canvas.getContext("2d");
+		ctx.font = this.fontStr;
+		this.canvas.width = ctx.measureText(this.text).width+this.lw*2+1;
+		this.canvas.height = this.fontSize+this.lw*2+1;
+		this.width = this.canvas.width;
+		this.height = this.canvas.height;
+		ctx.font = this.fontStr;
+		ctx.textAlign = "left";
+		ctx.textBaseline = "top";
+		if (this.bg) {
+			ctx.globalAlpha = 0.3;
+			ctx.fillStyle = this.bg;
+			ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+			ctx.globalAlpha = 1;
+		}
+		ctx.strokeStyle = this.stroke;
+		ctx.fillStyle = this.fill;
+		ctx.lineWidth = this.lw;
+		this.stroke && ctx.strokeText(this.text, this.lw, this.lw);
+		ctx.fillText(this.text, this.lw, this.lw);
+		return this.canvas;
+	}
+}
+
+/* 
+		           ...[```````[ START ]``````]...
+	<================= COMMON NETWORKING CODE ==================>
+		........======________________________======.........
+*/ 
+
+function prepareMsg(byteLength) {
+	return new DataView(new ArrayBuffer(byteLength));
+}
+
+function sendMsg(ws, view) {
+	if (!isWsOpen(ws)) return false;
+	ws.send(view.buffer);
+}
+
+function isWsOpen(ws) {
+	return ws && ws.readyState == WebSocket.OPEN;
+}
+
+function sendString(ws, str) {
+	let view = prepareMsg(2+str.length);
+	let offset = 0;
+	view.setUint8(offset++, 23);
+	offset = writeString(view, offset, str);
+	sendMsg(ws, view);
+}
+
+function sendFloat32(ws, msgId, float) {
+	let view = prepareMsg(5);
+	view.setUint8(0, msgId);
+	view.setFloat32(1, float);
+	sendMsg(ws, view);
+}
+
+function sendInt16(ws, msgId, data) {
+	let view = prepareMsg(3);
+	view.setUint8(0, msgId);
+	view.setUint16(1, data);
+	sendMsg(ws, view);
+}
+
+function sendUint8(ws, int) {
+	let view = prepareMsg(1);
+	view.setUint8(0, int);
+	sendMsg(ws, view)
+}
+
+function prepareData(buffer) {
+	let arrayBuffer = new ArrayBuffer(buffer.length);
+	let view = new Uint8Array(arrayBuffer);
+	for(let i = 0; i < buffer.length; i++) {
+		view[i] = buffer[i];
+	}
+	return new DataView(arrayBuffer);
+}
+
+function writeString(view, offset, str) {
+	let i = 0;
+	while (i < str.length) {
+		let code = str.charCodeAt(i++);
+		if(code > 255) continue;
+		view.setUint8(offset++, code);
+	}
+	view.setUint8(offset++, 0)
+	return offset;
+}
+
 class Circle {
 	constructor(x, y, r) {
 		this.id = ~~(Math.random() * 1E10);
@@ -430,17 +499,21 @@ class Circle {
 		this.y = y;
 		this.r = r;
 		this.hue = ~~(Math.random() * 256);
+		this.nickname = "";
 		this.oldX = this.newX = x;
 		this.oldY = this.newY = y;
-		this.newSize = this.r;
+		this.oldSize = this.newSize = r;
 		this.updateTime = 0;
 		this.mouseX = 0;
 		this.mouseY = 0;
 		this.addedNodes = [];
 		this.removedNodes = [];
 		this.updatedNodes = [];
-		this.nickname = null;
+		this.nodesInView = [];
+		this.allNodes = [];
 		this.nicknameText = null;
+		this.updated = !false;
+		this.playing = !false;
 	}
 	updatePos() {
 		if (animWithTimeCb.checked) {
@@ -460,25 +533,69 @@ class Circle {
 		this.x = Math.max(Math.min(this.x, gameSize), 0);
 		this.y = Math.max(Math.min(this.y, gameSize), 0);
 	}
-	draw() {
-		ctx.save();
-		ctx.translate(this.x, this.y);
-		ctx.beginPath();
-		ctx.arc(0, 0, this.r, 0, Math.PI * 2);
-		ctx.closePath();
-		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
-		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
-		ctx.lineWidth = 5;
-		ctx.fill();
-		ctx.stroke();
-		if (this.nicknameText == null) this.nicknameText = new Text();
-		if (this.nickname && this.nicknameText.text != this.nickname) {
-			this.nicknameText.setStyle("#fff", "#333", 3);
-			this.nicknameText.setText(this.nickname);
-			this.nicknameText.render();
+	checkIfUpdated() {
+		if (Math.hypot(this.x - this.oldX, this.y - this.oldY) > 0 || 
+			Math.abs(this.r - this.oldSize) > 0) {
+			this.oldX = this.x;
+			this.oldY = this.y;
+			this.oldSize = this.r;
+			this.updated = true;
+		} else {
+			this.updated = false;
 		}
-		if (this.nicknameText) ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
-		ctx.restore();
+	}
+	updateViewNodes() {
+		let nodesInView = [];
+		qt.query({ 
+			x: this.x - 1920 / 2,
+			y: this.y - 1080 / 2,
+			w: 1920,
+			h: 1080
+		}, function forEach(node) { node.playing && nodesInView.push(node); });
+		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
+		this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
+		this.updatedNodes = nodesInView.filter(node => node.updated);
+		this.nodesInView = nodesInView;
+	}
+	getNodesPackage() {
+		function setCommonData(node) {
+			view.setFloat32(offset, node.id); offset += 4;
+			view.setInt16(offset, node.x);  offset += 2;
+			view.setInt16(offset, node.y);  offset += 2;
+			view.setInt16(offset, node.r);  offset += 2;
+		}
+		let nicknameBytes = 0;
+		this.addedNodes.forEach(node => (nicknameBytes += node.nickname.length+1));
+		let view = prepareMsg(
+			1+2*3+
+			this.addedNodes.length*(4+2+2+2+1)+
+			nicknameBytes+
+			this.updatedNodes.length*(4+2+2+2)+
+			this.removedNodes.length*4
+		);
+		let offset = 0;
+		view.setUint8(offset++, 10);
+		view.setUint16(offset, this.addedNodes.length);
+		offset += 2;
+		this.addedNodes.forEach(node => {
+			setCommonData(node);
+			view.setUint8(offset++, node.hue);
+			offset = writeString(view, offset, node.nickname);
+		});
+		let numOffset = offset;
+		view.setUint16(offset, this.updatedNodes.length); offset += 2;
+		this.updatedNodes.forEach(node => { 
+			setCommonData(node); 
+		});
+		view.setUint16(offset, this.removedNodes.length); offset += 2;
+		this.removedNodes.forEach(node => { 
+			view.setFloat32(offset, node.id); 
+			offset += 4; 
+		});
+		return view;
+	}
+	draw() {
+		
 	}
 }
 
@@ -555,7 +672,7 @@ class QuadTree {
 				if (this.num == null) this.num = new Text();
 				if (this.num.text !== this.items.length) {
 					this.num.setText(this.items.length);
-					this.num.setFont("bolder 30px Arial");
+					this.num.setFont("bolder 30px Ubuntu");
 					this.num.setStyle("#f3f3f3", "#333", 3);
 					this.num.render();
 				}
@@ -576,50 +693,11 @@ class QuadTree {
 	}
 }
 
-class Text {
-	constructor() {
-		this.canvas = document.createElement("canvas");
-		this.setText("");
-		this.setFont("bolder 20px Arial");
-		this.setStyle("#fff", "#000", 3);
-	}
-	setText(txt) {
-		this.text = txt;
-	}
-	setFont(fontStr) {
-		this.fontStr = fontStr;
-		this.fontSize = parseInt(fontStr.replace(/[^0-9]/g, ""));
-	}
-	setStyle(fill, stroke, lw, bg) {
-		this.fill = fill;
-		this.stroke = stroke || false;
-		this.lw = lw || 0;
-		this.bg = bg || false;
-	}
-	render() {
-		let ctx = this.canvas.getContext("2d");
-		ctx.font = this.fontStr;
-		this.canvas.width = ctx.measureText(this.text).width+this.lw*2+1;
-		this.canvas.height = this.fontSize+this.lw*2+1;
-		this.width = this.canvas.width;
-		this.height = this.canvas.height;
-		ctx.font = this.fontStr;
-		ctx.textAlign = "left";
-		ctx.textBaseline = "top";
-		if (this.bg) {
-			ctx.globalAlpha = 0.3;
-			ctx.fillStyle = this.bg;
-			ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-			ctx.globalAlpha = 1;
-		}
-		ctx.strokeStyle = this.stroke;
-		ctx.fillStyle = this.fill;
-		ctx.lineWidth = this.lw;
-		this.stroke && ctx.strokeText(this.text, this.lw, this.lw);
-		ctx.fillText(this.text, this.lw, this.lw);
-		return this.canvas;
-	}
-}
+/* 
+		           ...[```````[  END  ]``````]...
+	<================= COMMON NETWORKING CODE ==================>
+		........======________________________======.........
+*/ 
 
 let latency = 0,
 	latencyCheckTime = 0,
@@ -628,6 +706,8 @@ let latency = 0,
 	timestamp = 0,
 	gameSize = 0,
 	screenNodeId = null,
+	oldWsUrl = null,
+	reconnect = null,
 	nodes = [],
 	mouseX = 0,
 	mouseY = 0,

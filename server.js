@@ -111,13 +111,23 @@ function gameTick() {
 	removedNodes = [];
 }
 
+/* 
+		           ...[```````[ START ]``````]...
+	<================= COMMON NETWORKING CODE ==================>
+		........======________________________======.........
+*/ 
+
 function prepareMsg(byteLength) {
 	return new DataView(new ArrayBuffer(byteLength));
 }
 
 function sendMsg(ws, view) {
-	if (ws.readyState != WebSocket.OPEN) return false;
+	if (!isWsOpen(ws)) return false;
 	ws.send(view.buffer);
+}
+
+function isWsOpen(ws) {
+	return ws && ws.readyState == WebSocket.OPEN;
 }
 
 function sendString(ws, str) {
@@ -168,23 +178,6 @@ function writeString(view, offset, str) {
 	return offset;
 }
 
-function pong() {
-	this.isAlive = true;
-}
-
-function ping() {
-	wss.clients.forEach(function each(ws) {
-		if(ws.isAlive == false) ws.terminate();
-		ws.isAlive = false;
-		ws.ping();
-	});
-}
-
-function printIp(req, res, next) {
-	console.log(req.headers["x-forwarded-for"] || req.connection.remoteAddress);
-	next();
-}
-
 class Circle {
 	constructor(x, y, r) {
 		this.id = ~~(Math.random() * 1E10);
@@ -209,9 +202,14 @@ class Circle {
 		this.playing = !false;
 	}
 	updatePos() {
-		let dt = Math.min((timestamp - this.updateTime) / 500, 1);
-		this.x = this.oldX + (this.newX - this.oldX) * dt;
-		this.y = this.oldY + (this.newY - this.oldY) * dt;
+		if (animWithTimeCb.checked) {
+			let dt = Math.min((timestamp - this.updateTime) / animDelay, 1);
+			this.x = this.oldX + (this.newX - this.oldX) * dt;
+			this.y = this.oldY + (this.newY - this.oldY) * dt;
+		} else {
+			this.x += (this.newX - this.x) * 0.1;
+			this.y += (this.newY - this.y) * 0.1;
+		}
 	}
 	move() {
 		let d = Math.hypot(this.mouseX, this.mouseY) || 1;
@@ -378,30 +376,17 @@ class QuadTree {
 	}
 }
 
-const express = require("express");
-const app = express();
+/* 
+		           ...[```````[  END  ]``````]...
+	<================= COMMON NETWORKING CODE ==================>
+		........======________________________======.........
+*/ 
 
-app.use("/", printIp);
-app.use("/", express.static("public"));
-app.use("/shared", express.static("shared"));
-
-const port = process.env.PORT || 6969;
-const server = app.listen(port, function done() {
-	console.log("Server started listening on port=" + port);
-});
-
-const WebSocket = require("ws");
-const wss = new WebSocket.Server({ server });
-wss.on("connection", onWsConnection);
-
-setInterval(ping, 3E4);
-setInterval(gameTick, 1E3/20);
-
-let gameSize = 2000;
-let nodes = [];
-let qt = new QuadTree(0, 0, gameSize, gameSize);
-let lbNames = [];
-let lbNamesView = prepareMsg(0);
+let gameSize = 2000,
+	nodes = [],
+	qt = new QuadTree(0, 0, gameSize, gameSize),
+	lbNames = [],
+	lbNamesView = prepareMsg(0);
 
 for (let i = 0; i < 5; i++) {
 	let node = new Circle(
@@ -429,3 +414,51 @@ for (let i = 0; i < 100; i++) {
 	);
 	addNode(node);
 }
+
+/* 
+		           ...[````````[ START ]````````]...
+	<================= SERVER INIT (DON'T TOUCH) ==================>
+		........======___________________________======.........
+*/ 
+
+function pong() {
+	this.isAlive = true;
+}
+
+function ping() {
+	wss.clients.forEach(function each(ws) {
+		if(ws.isAlive == false) ws.terminate();
+		ws.isAlive = false;
+		ws.ping();
+	});
+}
+
+function printIp(req, res, next) {
+	console.log(req.headers["x-forwarded-for"] || req.connection.remoteAddress);
+	next();
+}
+
+let express = require("express");
+let app = express();
+
+app.use("/", printIp);
+app.use("/", express.static("public"));
+app.use("/shared", express.static("shared"));
+
+let port = process.env.PORT || 6969;
+let server = app.listen(port, function done() {
+	console.log("Server started listening on port=" + port);
+});
+
+let WebSocket = require("ws");
+let wss = new WebSocket.Server({ server });
+wss.on("connection", onWsConnection);
+
+setInterval(ping, 3E4);
+setInterval(gameTick, 1E3/20);
+
+/* 
+		           ...[````````[  END  ]````````]...
+	<================= SERVER INIT (DON'T TOUCH) ==================>
+		........======___________________________======.........
+*/ 

@@ -53,19 +53,19 @@ footer ul {
 	font-size: 15px;
 }
 
-footer ul li {
+footer li {
 	display: inline-block;
 }
 
-footer ul li:after {
+footer li:after {
 	content: "|";
 	color: brown;
+	margin-left: 5px;
 	font-size: 1.15em;
 	font-weight: bolder;
-	margin-left: 5px;
 }
 
-footer ul li:last-child:after {
+footer li:last-child:after {
 	content: "";
 }
 
@@ -106,7 +106,7 @@ input[type=text] {
 	border: 2px solid #ddd;
 }
 
-input:focus {
+input[type=text]:focus {
 	border: 2px solid #aaa;
 }
 
