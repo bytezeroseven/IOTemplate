@@ -280,13 +280,6 @@ class Circle {
 			view.setFloat32(offset, node.id); 
 			offset += 4; 
 		});
-		if (this.fuckthisshit==null) (this.fuckthisshit = view.byteLength) && 
-			console.log(view.byteLength, 
-				this.addedNodes.length, 
-				this.updatedNodes.length, 
-				this.removedNodes.length,
-				numOffset
-			);
 		return view;
 	}
 }
@@ -410,7 +403,7 @@ let qt = new QuadTree(0, 0, gameSize, gameSize);
 let lbNames = [];
 let lbNamesView = prepareMsg(0);
 
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 5; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
