@@ -1,5 +1,13 @@
 Changelog
 
+v0.0.12 (27th July, 2019)
+	- Fixed 'Offset is outside the bound' error.
+	- Added 500 moving circles.
+	- Added 5000 stationary circles.
+	- New server: Europe (https://g69io-eu.herokuapp.com).
+	- Reconstructing QT on the client and re-inserting moved circles on the server. 
+	- Organized code.
+
 v0.0.11 (26th July, 2019)
 	- Added new UI
 	- Added region select.
@@ -7,7 +15,7 @@ v0.0.11 (26th July, 2019)
 	- Added settings. 
 	- Updated Terms.
 	- Updated Privacy Policy.
-	- Deployed on Heroku (https://g69io.herokuapp.com)
+	- Deployed on Heroku (https://g69io.herokuapp.com).
 	- Dm'ed Sidney De Trees and got a reply! (he was kinda rude)
 
 v0.0.1 (24th July, 2019)

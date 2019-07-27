@@ -19,10 +19,11 @@ function onWsConnection(ws, req) {
 	);
 	addNode(node);
 	node.ws = ws;
-	node.playing = false;
+	node.isPlaying = false;
+	node.isPlayer = true;
 
 	function onWsOpen() {
-		sendString(ws, "lOl u iS gaE");
+		sendString(ws, nodes.length+" total nodes");
 	}
 
 	function onWsClose() {
@@ -62,22 +63,24 @@ function onWsConnection(ws, req) {
 				break;
 			case 49:
 				node.nickname = getString();
-				node.playing = true;
+				node.isPlaying = true;
 				sendMsg(ws, lbNamesView);
 				break;
 			case 33:
 				sendUint8(ws, 33);
 				break;
 			case 255:
-				node.playing = !node.playing;
+				node.isPlaying = !node.isPlaying;
 				break;
 		}
 	}
 }
 
 function gameTick() {
+	let players = [];
 	nodes.forEach(node => {
-		if (node.playing) node.move();
+		if (node.isPlayer) players.push(node);
+		if (node.isPlaying) node.move();
 		node.checkIfUpdated();
 		if (node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
 		} else {
@@ -85,11 +88,11 @@ function gameTick() {
 			qt.insert(node);
 		}
 	});
-	let newNames = nodes.sort((a, b) => b.r - a.r).map(a => a.nickname);
-	newNames = newNames.slice(0, Math.min(10, newNames.length));
-	for (let j = 0; j < newNames.length; j++) {
-		if (newNames[j] != lbNames[j]) {
-			lbNames = newNames;
+	let newLbNames = players.sort((a, b) => b.r - a.r).map(a => a.nickname);
+	newLbNames = newLbNames.slice(0, Math.min(10, newLbNames.length));
+	for (let j = 0; j < newLbNames.length; j++) {
+		if (newLbNames[j] != lbNames[j]) {
+			lbNames = newLbNames;
 			break;
 		}
 	}
@@ -101,11 +104,11 @@ function gameTick() {
 	view.setUint8(offset++, lbNames.length);
 	for (let i = 0; i < lbNames.length; i++) offset = writeString(view, offset, lbNames[i]);
 	lbNamesView = view;
-	nodes.forEach(node => {
+	players.forEach(node => {
 		if (node.ws) {
 			node.updateViewNodes();
 			sendMsg(node.ws, node.getNodesPackage());
-			lbNames == newNames && sendMsg(node.ws, lbNamesView);
+			lbNames == newLbNames && sendMsg(node.ws, lbNamesView);
 		}
 	});
 	removedNodes = [];
@@ -196,10 +199,10 @@ class Circle {
 		this.removedNodes = [];
 		this.updatedNodes = [];
 		this.nodesInView = [];
-		this.allNodes = [];
 		this.nicknameText = null;
-		this.updated = !false;
-		this.playing = !false;
+		this.hasUpdated = !false;
+		this.isPlaying = !false;
+		this.isPlayer = false;
 	}
 	updatePos() {
 		if (animWithTimeCb.checked) {
@@ -220,14 +223,13 @@ class Circle {
 		this.y = Math.max(Math.min(this.y, gameSize), 0);
 	}
 	checkIfUpdated() {
-		if (Math.hypot(this.x - this.oldX, this.y - this.oldY) > 0 || 
-			Math.abs(this.r - this.oldSize) > 0) {
+		if (Math.hypot(this.x - this.oldX, this.y - this.oldY) > 0 || Math.abs(this.r - this.oldSize) > 0) {
 			this.oldX = this.x;
 			this.oldY = this.y;
 			this.oldSize = this.r;
-			this.updated = true;
+			this.hasUpdated = true;
 		} else {
-			this.updated = false;
+			this.hasUpdated = false;
 		}
 	}
 	updateViewNodes() {
@@ -237,10 +239,10 @@ class Circle {
 			y: this.y - 1080 / 2,
 			w: 1920,
 			h: 1080
-		}, function forEach(node) { node.playing && nodesInView.push(node); });
+		}, function forEach(node) { node.isPlaying && nodesInView.push(node); });
 		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
 		this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
-		this.updatedNodes = nodesInView.filter(node => node.updated);
+		this.updatedNodes = nodesInView.filter(node => node.hasUpdated);
 		this.nodesInView = nodesInView;
 	}
 	getNodesPackage() {
@@ -355,7 +357,7 @@ class QuadTree {
 				if (this.num == null) this.num = new Text();
 				if (this.num.text !== this.items.length) {
 					this.num.setText(this.items.length);
-					this.num.setFont("bolder 30px Ubuntu");
+					this.num.setFont("bolder 30px Arial");
 					this.num.setStyle("#f3f3f3", "#333", 3);
 					this.num.render();
 				}
@@ -382,13 +384,13 @@ class QuadTree {
 		........======________________________======.........
 */ 
 
-let gameSize = 2000,
+let gameSize = 10000,
 	nodes = [],
 	qt = new QuadTree(0, 0, gameSize, gameSize),
 	lbNames = [],
 	lbNamesView = prepareMsg(0);
 
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 500; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
@@ -396,17 +398,17 @@ for (let i = 0; i < 5; i++) {
 	);
 	function move() {
 		setTimeout(() => {
-			node.mouseX = Math.random() * 1920 - 1920/2;
+			node.mouseX = Math.random() * 1920 - 960;
 			node.mouseY = Math.random() * 1080 - 540;
 			move();
 		}, 1000);
 	}
 	move();
-	node.nickname = "cell"+String.fromCharCode(~~(Math.random() * 127)).repeat(5);
+	node.nickname = "bot"+String.fromCharCode(~~(Math.random() * 254)+1).repeat(5);
 	addNode(node);
 }
 
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 5000; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
