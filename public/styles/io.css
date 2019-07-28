@@ -165,11 +165,17 @@ button:active {
 	float: left;
 }
 
-.center {
+.centered {
 	display: table;
 	margin: 0 auto;
 }
 
 .ad {
 	background: #eee;
+}
+
+#wsConnecting {
+	position: absolute;
+	top: 0;
+	left: 0;
 }

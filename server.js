@@ -12,11 +12,7 @@ function removeNode(node) {
 }
 
 function onWsConnection(ws, req) {
-	let node = new Circle(
-		Math.random() * 1000, 
-		Math.random() * 400, 
-		Math.random() * 10+50
-	);
+	let node = new Circle(0, 0, 0);
 	addNode(node);
 	node.ws = ws;
 	node.isPlaying = false;
@@ -63,8 +59,13 @@ function onWsConnection(ws, req) {
 				break;
 			case 49:
 				node.nickname = getString();
-				node.isPlaying = true;
-				sendMsg(ws, lbNamesView);
+				if (node.isPlaying == false) {
+					node.isPlaying = true;
+					node.x = Math.random() * 1000;
+					node.y = Math.random() * 400;
+					node.r = Math.random() * 10 + 30;
+					sendMsg(ws, lbNamesView);
+				}
 				break;
 			case 33:
 				sendUint8(ws, 33);
@@ -87,6 +88,7 @@ function gameTick() {
 			qt.remove(node);
 			qt.insert(node);
 		}
+		if (node.r < 10) return;
 		qt.query({ x: node.x - node.r * 2, y: node.y - node.r * 2, w: node.r * 4, h: node.r * 4 }, function(other) {
 			if (other.isPlaying == false) return;
 			let d = Math.hypot(other.x - node.x, node.y - other.y);
@@ -96,6 +98,30 @@ function gameTick() {
 					node.r = r;
 					if (!other.isPlayer) removeNode(other) 
 					other.isPlaying = false; 
+if (other.r < 10) {
+	let node = new Circle(
+		Math.random() * gameSize, 
+		Math.random() * gameSize, 
+		Math.random() * 5+3
+	);
+	addNode(node);
+} else {
+	let node = new Circle(
+		Math.random() * gameSize, 
+		Math.random() * gameSize, 
+		Math.random() * 10+30
+	);
+	function move() {
+		setTimeout(() => {
+			node.mouseX = Math.random() * 1920 - 960;
+			node.mouseY = Math.random() * 1080 - 540;
+			move();
+		}, 1000);
+	}
+	move();
+	node.nickname = "bot"+String.fromCharCode(~~(Math.random() * 254)+1).repeat(5);
+	addNode(node);
+}
 				} 
 			}
 		})
@@ -395,13 +421,13 @@ class QuadTree {
 		........======________________________======.........
 */ 
 
-let gameSize = 20000,
+let gameSize = 10000,
 	nodes = [],
 	qt = new QuadTree(0, 0, gameSize, gameSize),
 	lbNames = [],
 	lbNamesView = prepareMsg(0);
 
-for (let i = 0; i < 1000; i++) {
+for (let i = 0; i < 30; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
@@ -419,7 +445,7 @@ for (let i = 0; i < 1000; i++) {
 	addNode(node);
 }
 
-for (let i = 0; i < 5000; i++) {
+for (let i = 0; i < 1000; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
@@ -469,7 +495,7 @@ let wss = new WebSocket.Server({ server });
 wss.on("connection", onWsConnection);
 
 setInterval(ping, 3E4);
-setInterval(gameTick, 1E3/10);
+setInterval(gameTick, 1E3/20);
 
 /* 
 		           ...[````````[  END  ]````````]...

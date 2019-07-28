@@ -21,9 +21,11 @@ function onKeyUp(evt) {
 }
 
 function onMouseMove(evt) {
-	mouseX = evt.clientX;
-	mouseY = evt.clientY;
-	sendMousePos();
+	if (evt.target == gameCanvas) {
+		mouseX = evt.clientX;
+		mouseY = evt.clientY;
+		sendMousePos();
+	}
 }
 
 function onMouseWheel(evt) {
@@ -60,11 +62,8 @@ function removeNode(node) {
 function onWsOpen() {
 	console.log("Connected!");
 	checkLatency();
-	sendNickname();
-	hideEle(playButton.children[0]);
-	hideEle(playButton.children[1]);
-	showEle(playButton.children[2]);
-	hideEle(mainOverlay);
+	hideEle(wsConnecting);
+	playButton.disabled = false;
 	addMsg({ 
 		text: "WebSocket open", 
 		bg: "blue", 
@@ -73,8 +72,8 @@ function onWsOpen() {
 }
 
 function onWsClose() {
-	console.log("Disconnected. Reconnecting in 5 seconds...");
-	reconnect = setTimeout(function () { wsConnect(oldWsUrl); }, 5E3);
+	console.log("Disconnected. Reconnecting in " + reconnectInterval + " ms...");
+	reconnect = setTimeout(function () { wsConnect(oldWsUrl); }, reconnectInterval);
 	addMsg({ 
 		text: "WebSocket closed", 
 		bg: "red", 
@@ -95,6 +94,7 @@ function onWsMessage(msg) {
 }
 
 function wsConnect(wsUrl) {
+	if (wsUrl == "#") wsUrl = location.origin;
 	console.log("Connecting to " + wsUrl + "...");
 	oldWsUrl = wsUrl;
 	clearTimeout(reconnect);
@@ -125,6 +125,8 @@ function wsConnect(wsUrl) {
 	msgs = [];
 	logs = [];
 	lbNames = [];
+	showEle(wsConnecting);
+	playButton.disabled = true;
 }
 
 function handleWsMessage(view) {
@@ -186,6 +188,9 @@ function handleWsMessage(view) {
 				offset += 4;
 				let node = nodes.find(node => node.id == nodeId);
 				removeNode(node);
+				if (nodeId == screenNodeId) {
+					showEle(mainOverlay);
+				}
 			}
 			addLog({
 				index: 2,
@@ -764,6 +769,7 @@ let latency = 0,
 	screenNodeId = null,
 	oldWsUrl = null,
 	reconnect = null,
+	reconnectInterval = 2E3,
 	nodes = [],
 	mouseX = 0,
 	mouseY = 0,
@@ -789,8 +795,7 @@ let latency = 0,
 	mainOverlay = document.getElementById("mainOverlay"),
 	gameCanvas = document.getElementById("gameCanvas"),
 	mainLayout = document.getElementById("mainLayout"),
-	header = document.querySelector("header"),
-	footer = document.querySelector("footer"),
+	wsConnecting = document.getElementById("wsConnecting"),
 	ctx = gameCanvas.getContext("2d"),
 	gridCanvas = document.createElement("canvas"),
 	lbCanvas = document.createElement("canvas"),
@@ -828,21 +833,17 @@ animDelayRange.oninput = function () {
 animDelayRange.value = 120;
 animDelayRange.oninput();
 
-regionSelect.onchange = function () {
-	playButton.disabled = false;
-	showEle(playButton.children[0]);
-	hideEle(playButton.children[1]);
-	hideEle(playButton.children[2]);
+regionSelect.onchange = function (evt) {
+	wsConnect(evt.target.value);
 }
 
 playButton.onclick = function () {
-	playButton.disabled = true;
-	hideEle(playButton.children[0]);
-	showEle(playButton.children[1]);
-	wsConnect(regionSelect.selectedOptions[0].value || location.origin);
+	sendNickname();
+	hideEle(mainOverlay);
 }
 
 window.onload = function() {
+	wsConnect(regionSelect.selectedOptions[0].value);
 	onResize();
 	gameLoop();
 }
