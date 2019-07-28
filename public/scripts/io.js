@@ -6,7 +6,10 @@ function onResize() {
 	canvasHeight = innerHeight;
 	gameCanvas.width = canvasWidth;
 	gameCanvas.height = canvasHeight;
-	scale = Math.min(innerWidth / width, innerHeight / height);
+	scale = Math.min(
+		innerWidth / width, 
+		innerHeight / height
+	);
 	mainOverlay.style.width = innerWidth / scale + "px";
 	mainOverlay.style.height = innerHeight / scale + "px";
 	mainOverlay.style.transform = "translate(-50%, -50%) scale(" + scale + ") translate(50%, 50%)";
@@ -23,6 +26,16 @@ function onMouseMove(evt) {
 	sendMousePos();
 }
 
+function onMouseWheel(evt) {
+	if (evt.target != gameCanvas) return;
+	let zoomSpeed = 0.1;
+	if (evt.deltaY <= -100) {
+		viewScale *= 1 + zoomSpeed;
+	} else if(evt.deltaY >= 100) {
+		viewScale *= 1 - zoomSpeed;
+	}
+}
+
 function onClick(evt) { 
 	if (evt.target == mainOverlay) hideEle(mainOverlay);
 }
@@ -30,6 +43,7 @@ function onClick(evt) {
 document.onmousemove = onMouseMove;
 document.onkeyup = onKeyUp;
 document.onclick = onClick;
+document.onmousewheel = onMouseWheel;
 window.onresize = onResize;
 
 function addNode(node) {
@@ -124,7 +138,10 @@ function handleWsMessage(view) {
 	let offset = 0;
 	switch (view.getUint8(offset++)) {
 		case 10: 
-			let nodeId, posX, posY, size;
+			let nodeId, 
+				posX, 
+				posY, 
+				size;
 			function readCommonData() {
 				nodeId = view.getFloat32(offset); 
 				offset += 4;
@@ -139,9 +156,9 @@ function handleWsMessage(view) {
 			offset += 2;
 			for (let i = 0; i < numAddedNodes; i++) {
 				readCommonData();
-				let hue = view.getUint8(offset++); 
-				let nickname = getString();
-				let node = new Circle(posX, posY, size);
+				let hue = view.getUint8(offset++),
+					nickname = getString(),
+					node = new Circle(posX, posY, size);
 				node.id = nodeId;
 				node.hue = hue;
 				node.nickname = nickname;
@@ -156,6 +173,7 @@ function handleWsMessage(view) {
 					node.updateTime = timestamp;
 					node.oldX = node.x;
 					node.oldY = node.y;
+					node.oldSize = node.r;
 					node.newX = posX;
 					node.newY = posY;
 					node.newSize = size;
@@ -323,32 +341,38 @@ function addLog(args) {
 
 function gameLoop() {
 	timestamp = +Date.now();
-	ctx.fillStyle = "#bbb";
-	ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-	ctx.save();
+	qt = new QuadTree(0, 0, gameSize, gameSize);
+
+	nodes.forEach(function(node) {
+		node.updatePos();
+		qt.insert(node)
+	});
 
 	let node = nodes.find(node => node.id == screenNodeId);
 	if (node) {
 		nodeX = node.x;
 		nodeY = node.y;
 	}
-	ctx.translate(canvasWidth / 2 - nodeX, canvasHeight / 2 - nodeY);
+
+	ctx.fillStyle = "#bbb";
+	ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+	ctx.save();
+	ctx.translate(canvasWidth / 2, canvasHeight / 2);
+	ctx.scale(viewScale, viewScale);
+	ctx.translate(-nodeX, -nodeY);
 
 	renderGrid(26);
 	ctx.fillStyle = ctx.createPattern(gridCanvas, "repeat");
-	ctx.fillRect(-canvasWidth / 2 + nodeX, -canvasHeight / 2 + nodeY, canvasWidth, canvasHeight);
-
+	ctx.fillRect(
+		-(canvasWidth / 2) / viewScale + nodeX, 
+		-(canvasHeight / 2) / viewScale + nodeY, 
+		canvasWidth / viewScale, 
+		canvasHeight / viewScale
+	);
+	
 	if (showQtCb.checked) qt.draw();
-
-	qt = new QuadTree(0, 0, gameSize, gameSize)
-
-	nodes.forEach(function(node) {
-		node.updatePos();
-		node.r = node.newSize * 0.1 + node.r * 0.9;
-		// node.draw();
-		qt.insert(node)
-	});
 
 	let viewNodes = []
 	qt.query({ x: nodeX - width/2, y: nodeY-height/2, w: width, h: height }, function(n) {
@@ -533,10 +557,12 @@ class Circle {
 		if (animDelay == 0) {
 			this.x = this.newX;
 			this.y = this.newY;
+			this.r = this.newSize;
 		} else {
 			let dt = Math.max(0, Math.min((timestamp - this.updateTime) / animDelay, 1));
 			this.x = this.oldX + (this.newX - this.oldX) * dt;
 			this.y = this.oldY + (this.newY - this.oldY) * dt;
+			this.r = this.oldSize + (this.newSize - this.oldSize) * dt;
 		}
 	}
 	move() {
@@ -694,9 +720,9 @@ class QuadTree {
 			}
 		}
 	}
-	draw() {
+	draw(showItems) {
 		if (this.nodes.length > 0) {
-			for (let i = 0; i < this.nodes.length; i++) this.nodes[i].draw();
+			for (let i = 0; i < this.nodes.length; i++) this.nodes[i].draw(showItems);
 		} else {
 			if (this.w > 30) {
 				if (this.num == null) this.num = new Text();
@@ -708,16 +734,16 @@ class QuadTree {
 				}
 				ctx.drawImage(this.num.canvas, this.x+this.w/2-this.num.width/2, this.y+this.h/2-this.num.height/2);	
 			}
-			ctx.strokeStyle = "red";
+			ctx.strokeStyle = "#333";
 			ctx.lineWidth = 1;
 			ctx.strokeRect(this.x, this.y, this.w, this.h);
-			ctx.lineWidth = 2;
-			ctx.strokeStyle = "red";
+			if (!showItems) return;
+			ctx.fillStyle = "red";
 			for (let j = 0; j < this.items.length; j++) {
 				ctx.beginPath();
-				ctx.arc(this.items[j].x, this.items[j].y, 1, 0, Math.PI * 2);
+				ctx.arc(this.items[j].x, this.items[j].y, 3, 0, Math.PI * 2);
 				ctx.closePath();
-				ctx.stroke();
+				ctx.fill();
 			}
 		}
 	}
@@ -744,6 +770,7 @@ let latency = 0,
 	width = 1600,
 	height = 900,
 	scale = 1,
+	viewScale = 1,
 	canvasWidth = 0,
 	canvasHeight = 0,
 	logs = [],
@@ -794,10 +821,12 @@ settingButton.onclick = function () {
 	toggleEle(settingDiv);
 }
 
-animDelayRange.onchange = animDelayRange.oninput = function () {
+animDelayRange.oninput = function () {
 	animDelay = animDelayRange.value;
 	animDelayValue.innerText = animDelay;
 }
+animDelayRange.value = 120;
+animDelayRange.oninput();
 
 regionSelect.onchange = function () {
 	playButton.disabled = false;

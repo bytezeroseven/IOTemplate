@@ -80,22 +80,22 @@ function gameTick() {
 	let players = [];
 	nodes.forEach(node => {
 		if (node.isPlayer) players.push(node);
-		if (node.isPlaying) node.move();
+		if (node.isPlaying != false) node.move();
 		node.checkIfUpdated();
 		if (node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
 		} else {
 			qt.remove(node);
 			qt.insert(node);
 		}
-		if(!node.isPlayer) return;
 		qt.query({ x: node.x - node.r * 2, y: node.y - node.r * 2, w: node.r * 4, h: node.r * 4 }, function(other) {
 			if (other.isPlaying == false) return;
 			let d = Math.hypot(other.x - node.x, node.y - other.y);
 			if (d < node.r + other.r) {
-				if (node.r > other.r * 1.2 && d < node.r - other.r * 0.45) {
-					node.r += Math.sqrt(other.r);
-					other.r = 0;
-					removeNode(other);
+				if (node.r > other.r * 1.05 && d < node.r - other.r * 0.48) {
+					let r = Math.sqrt(Math.pow(node.r / 10, 2) + Math.pow(other.r / 10, 2)) * 10
+					node.r = r;
+					if (!other.isPlayer) removeNode(other) 
+					other.isPlaying = false; 
 				} 
 			}
 		})
@@ -395,13 +395,13 @@ class QuadTree {
 		........======________________________======.........
 */ 
 
-let gameSize = 10000,
+let gameSize = 20000,
 	nodes = [],
 	qt = new QuadTree(0, 0, gameSize, gameSize),
 	lbNames = [],
 	lbNamesView = prepareMsg(0);
 
-for (let i = 0; i < 500; i++) {
+for (let i = 0; i < 1000; i++) {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
@@ -447,7 +447,8 @@ function ping() {
 }
 
 function printIp(req, res, next) {
-	console.log(req.headers["x-forwarded-for"] || req.connection.remoteAddress);
+	let ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+	console.log("New request form ip=" + ip);
 	next();
 }
 
@@ -468,7 +469,7 @@ let wss = new WebSocket.Server({ server });
 wss.on("connection", onWsConnection);
 
 setInterval(ping, 3E4);
-setInterval(gameTick, 1E3/20);
+setInterval(gameTick, 1E3/10);
 
 /* 
 		           ...[````````[  END  ]````````]...

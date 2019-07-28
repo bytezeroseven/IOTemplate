@@ -11,6 +11,7 @@ body {
 	font-weight: 100;
 	overflow: hidden;
 	user-select: none;
+	cursor: url(./images/dev.jpg);
 }
 
 img {
@@ -92,7 +93,7 @@ a:hover {
 }
 
 a:visited {
-	text-decoration: none;
+	text-decoration: none !important;
 }
 
 input, button, select {
