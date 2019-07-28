@@ -1,5 +1,11 @@
 Changelog
 
+v0.0.13 (28th July, 2019)
+	- New connecting dialog.
+	- New approach for connection which allows 'play again' functionality.
+	- Fixed jittery movements.
+	- Reduced stationary circles to 1000 and moving circles to 20.
+
 v0.0.12 (27th July, 2019)
 	- Fixed 'Offset is outside the bound' error.
 	- Added 500 moving circles.
