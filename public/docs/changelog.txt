@@ -1,7 +1,16 @@
 Changelog
 
+v0.0.14 (30th July, 2019)
+	- Net curve that displays the throughput history.
+	- UI Improvements:
+		- New settings dialog.
+		- Added Box shadows.
+
 v0.0.13 (28th July, 2019)
-	- New connecting dialog.
+	- UI improvements:
+		- Connecting dialog.
+		- Rounded corners.
+		- New 729x90 ad space.
 	- New approach for connection which allows 'play again' functionality.
 	- Fixed jittery movements.
 	- Reduced stationary circles to 1000 and moving circles to 20.

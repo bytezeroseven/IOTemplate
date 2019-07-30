@@ -11,7 +11,6 @@ body {
 	font-weight: 100;
 	overflow: hidden;
 	user-select: none;
-	cursor: url(./images/dev.jpg);
 }
 
 img {
@@ -23,6 +22,10 @@ h1, h2, h3 {
 	color: #888;
 }
 
+h2, h3 {
+	margin: 10px 0;
+}
+
 header {
 	text-align: center;
 	margin-bottom: 4em;
@@ -31,9 +34,9 @@ header {
 header h1 {
 	text-shadow: 0 7px #ddd, 0 4px #ddd;
 	font-size: 6em;
-	margin-bottom: 0;
 	color: #fff;
 	font-weight: 700;
+	margin-bottom: 0;
 }
 
 header h2 {
@@ -76,10 +79,12 @@ footer li:last-child:after {
 
 .links {
 	float: right;
+	border-top-left-radius: 5px;
 }
 
 .social {
 	float: left;
+	border-top-right-radius: 5px;
 }
 
 a {
@@ -98,11 +103,12 @@ a:visited {
 
 input, button, select {
 	font-size: inherit;
+	font-family: inherit;
 	padding: 5px;
 	outline: 0;
-	font-family: inherit;
 	color: #666;
 	margin-bottom: 5px;
+	border-radius: 5px;
 }
 
 input[type=text] {
@@ -116,7 +122,6 @@ input[type=text]:focus {
 }
 
 button {
-	width: auto;
 	border: 0;
 	margin-bottom: 15px;
 	box-shadow: 0 10px #b53838;
@@ -149,20 +154,21 @@ button:active {
 }
 
 .container {
-	display: inline-block;
+	float: left;
 	padding: 10px;
 	background: #fff;
 	color: #a4a4a4;
-	box-shadow: 0 10px #f0f0f0;
+	box-shadow: 0 10px #f0f0f0, -2px 14px #666, 2px 14px #555, 
+		-2px -1px #555, 2px -1px #555;
 	margin-bottom: 20px;
+	border-radius: 5px;
 }
 
 #mainLayout .container {
 	overflow-y: auto;
-	max-width: 310px;
+	max-width: 330px;
 	max-height: 290px;
 	margin-left: 5px;
-	float: left;
 }
 
 .centered {
@@ -171,11 +177,28 @@ button:active {
 }
 
 .ad {
-	background: #eee;
+	background: #d9d9d9;
 }
 
-#wsConnecting {
+#topLeft {
 	position: absolute;
-	top: 0;
-	left: 0;
+	top: 10px;
+	left: 10px;
+}
+
+#settingDiv {
+	width: 500px;
+	max-height: 550px;
+	padding: 5px 15px;
+}
+
+#inputDiv button {
+	width: 100%;
+}
+
+#netCanvas {
+	width: 100%;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	margin-bottom: 5px;
 }

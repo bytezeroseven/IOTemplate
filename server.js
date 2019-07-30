@@ -88,8 +88,14 @@ function gameTick() {
 			qt.remove(node);
 			qt.insert(node);
 		}
-		if (node.r < 10) return;
-		qt.query({ x: node.x - node.r * 2, y: node.y - node.r * 2, w: node.r * 4, h: node.r * 4 }, function(other) {
+		if (node.isFood) return;
+		if (node.r > 30) node.r *= 0.9998;
+		qt.query({ 
+			x: node.x - node.r * 2, 
+			y: node.y - node.r * 2, 
+			w: node.r * 4, 
+			h: node.r * 4 
+		}, function(other) {
 			if (other.isPlaying == false) return;
 			let d = Math.hypot(other.x - node.x, node.y - other.y);
 			if (d < node.r + other.r) {
@@ -98,35 +104,19 @@ function gameTick() {
 					node.r = r;
 					if (!other.isPlayer) removeNode(other) 
 					other.isPlaying = false; 
-if (other.r < 10) {
-	let node = new Circle(
-		Math.random() * gameSize, 
-		Math.random() * gameSize, 
-		Math.random() * 5+3
-	);
-	addNode(node);
-} else {
-	let node = new Circle(
-		Math.random() * gameSize, 
-		Math.random() * gameSize, 
-		Math.random() * 10+30
-	);
-	function move() {
-		setTimeout(() => {
-			node.mouseX = Math.random() * 1920 - 960;
-			node.mouseY = Math.random() * 1080 - 540;
-			move();
-		}, 1000);
-	}
-	move();
-	node.nickname = "bot"+String.fromCharCode(~~(Math.random() * 254)+1).repeat(5);
-	addNode(node);
-}
+					other.killerNodeId = node.id;
+					if (other.isFood) {
+						addFood();
+					} else if (other.isBot) {
+						addBot();
+					}
 				} 
 			}
 		})
 	});
-	let newLbNames = players.sort((a, b) => b.r - a.r).map(a => a.nickname);
+	let sorted = players.sort((a, b) => b.r - a.r);
+	spectateNode = sorted[0];
+	let newLbNames = sorted.map(a => a.nickname)
 	newLbNames = newLbNames.slice(0, Math.min(10, newLbNames.length));
 	for (let j = 0; j < newLbNames.length; j++) {
 		if (newLbNames[j] != lbNames[j]) {
@@ -143,9 +133,13 @@ if (other.r < 10) {
 	for (let i = 0; i < lbNames.length; i++) offset = writeString(view, offset, lbNames[i]);
 	lbNamesView = view;
 	players.forEach(node => {
-		if (node.ws) {
-			node.updateViewNodes();
-			sendMsg(node.ws, node.getNodesPackage());
+		if (isWsOpen(node.ws)) {
+			if (node.isSpectating) {
+				sendMsg(node.ws, spectateNode.getNodesPackage());
+			} else {
+				node.updateViewNodes();
+				sendMsg(node.ws, node.getNodesPackage());
+			}
 			lbNames == newLbNames && sendMsg(node.ws, lbNamesView);
 		}
 	});
@@ -240,15 +234,22 @@ class Circle {
 		this.hasUpdated = !false;
 		this.isPlaying = !false;
 		this.isPlayer = false;
+		this.isFood = false;
+		this.isBot = false;
+		this.killerNodeId = null;
+		this.killedNodes = [];
+		this.isSpectating = false;
 	}
 	updatePos() {
-		if (animWithTimeCb.checked) {
-			let dt = Math.min((timestamp - this.updateTime) / animDelay, 1);
+		if (animDelay == 0) {
+			this.x = this.newX;
+			this.y = this.newY;
+			this.r = this.newSize;
+		} else {
+			let dt = Math.max(0, Math.min((timestamp - this.updateTime) / animDelay, 1));
 			this.x = this.oldX + (this.newX - this.oldX) * dt;
 			this.y = this.oldY + (this.newY - this.oldY) * dt;
-		} else {
-			this.x += (this.newX - this.x) * 0.1;
-			this.y += (this.newY - this.y) * 0.1;
+			this.r = this.oldSize + (this.newSize - this.oldSize) * dt;
 		}
 	}
 	move() {
@@ -271,15 +272,19 @@ class Circle {
 	}
 	updateViewNodes() {
 		let nodesInView = [];
+		let scale = 1 - this.r / 10000;
+		scale <= 0 && (scale = 0.1);
 		qt.query({ 
-			x: this.x - 1920 / 2,
-			y: this.y - 1080 / 2,
-			w: 1920,
-			h: 1080
+			x: this.x - 1920 / 2 / scale,
+			y: this.y - 1080 / 2 / scale,
+			w: 1920 / scale,
+			h: 1080 / scale
 		}, function forEach(node) { node.isPlaying && nodesInView.push(node); });
 		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
-		this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
 		this.updatedNodes = nodesInView.filter(node => node.hasUpdated);
+		let allRemovedNodes = this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
+		this.killedNodes = allRemovedNodes.filter(node => node.killerNodeId);
+		this.removedNodes = allRemovedNodes.filter(node => this.killedNodes.indexOf(node) == -1);
 		this.nodesInView = nodesInView;
 	}
 	getNodesPackage() {
@@ -292,7 +297,8 @@ class Circle {
 		let nicknameBytes = 0;
 		this.addedNodes.forEach(node => (nicknameBytes += node.nickname.length+1));
 		let view = prepareMsg(
-			1+2*3+
+			1+2*4+
+			this.killedNodes.length*(4+4)+
 			this.addedNodes.length*(4+2+2+2+1)+
 			nicknameBytes+
 			this.updatedNodes.length*(4+2+2+2)+
@@ -300,6 +306,16 @@ class Circle {
 		);
 		let offset = 0;
 		view.setUint8(offset++, 10);
+
+		view.setUint16(offset, this.killedNodes.length);
+		offset += 2;
+		this.killedNodes.forEach(node => {
+			view.setFloat32(offset, node.id);
+			offset += 4;
+			view.setFloat32(offset, node.killerNodeId);
+			offset += 4;
+		})
+
 		view.setUint16(offset, this.addedNodes.length);
 		offset += 2;
 		this.addedNodes.forEach(node => {
@@ -421,37 +437,51 @@ class QuadTree {
 		........======________________________======.........
 */ 
 
-let gameSize = 10000,
+let gameSize = 5E3,
 	nodes = [],
 	qt = new QuadTree(0, 0, gameSize, gameSize),
 	lbNames = [],
-	lbNamesView = prepareMsg(0);
+	lbNamesView = prepareMsg(0),
+	spectateNode = null;
 
-for (let i = 0; i < 30; i++) {
+function addBot() {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
-		Math.random() * 10+30
+		30
 	);
+	node.isBot = true;
 	function move() {
-		setTimeout(() => {
+		let id = setTimeout(() => {
 			node.mouseX = Math.random() * 1920 - 960;
 			node.mouseY = Math.random() * 1080 - 540;
+			clearInterval(id);
+			id = null;
 			move();
 		}, 1000);
 	}
 	move();
-	node.nickname = "bot"+String.fromCharCode(~~(Math.random() * 254)+1).repeat(5);
+	let rnd = ~~(Math.random() * 254)+1;
+	node.nickname = String.fromCharCode(rnd).repeat(5)+String.fromCharCode(rnd+1).repeat(5);
 	addNode(node);
 }
 
-for (let i = 0; i < 1000; i++) {
+function addFood() {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
-		Math.random() * 5+3
+		Math.random() * 2+5
 	);
+	node.isFood = true;
 	addNode(node);
+}
+
+for (let i = 0; i < 50; i++) {
+	addBot()
+}
+
+for (let i = 0; i < 600; i++) {
+	addFood();
 }
 
 /* 

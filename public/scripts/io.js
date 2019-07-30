@@ -50,19 +50,17 @@ window.onresize = onResize;
 
 function addNode(node) {
 	nodes.push(node);
-	qt.insert(node);
 }
 
 function removeNode(node) {
 	let index = nodes.indexOf(node);
 	if (index > -1) nodes.splice(index, 1);
-	qt.remove(node);
 }
 
 function onWsOpen() {
 	console.log("Connected!");
 	checkLatency();
-	hideEle(wsConnecting);
+	hideEle(connecting);
 	playButton.disabled = false;
 	addMsg({ 
 		text: "WebSocket open", 
@@ -72,7 +70,7 @@ function onWsOpen() {
 }
 
 function onWsClose() {
-	console.log("Disconnected. Reconnecting in " + reconnectInterval + " ms...");
+	console.log("Disconnected. Reconnecting in " + reconnectInterval + "ms...");
 	reconnect = setTimeout(function () { wsConnect(oldWsUrl); }, reconnectInterval);
 	addMsg({ 
 		text: "WebSocket closed", 
@@ -99,14 +97,15 @@ function wsConnect(wsUrl) {
 	oldWsUrl = wsUrl;
 	clearTimeout(reconnect);
 	reconnect = null;
+	urlSpan.innerHTML = wsUrl;
+	showEle(connecting);
+	playButton.disabled = true;
 	if (ws) {
 		ws.onmessage = null;
 		ws.onopen = null;
 		ws.onclose = null;
 		ws.onerror = null;
-		try {
-			ws.close();
-		} catch (e) { }
+		ws.close();
 		ws = null;
 	}
 	wsUrl = wsUrl.replace(/^http/, "ws");
@@ -125,8 +124,6 @@ function wsConnect(wsUrl) {
 	msgs = [];
 	logs = [];
 	lbNames = [];
-	showEle(wsConnecting);
-	playButton.disabled = true;
 }
 
 function handleWsMessage(view) {
@@ -153,6 +150,34 @@ function handleWsMessage(view) {
 				offset += 2;
 				size = view.getInt16(offset); 
 				offset += 2;
+			}
+			let queueLength = view.getUint16(offset);
+			offset += 2;
+			for (let i = 0; i < queueLength; i++) {
+				let killedNodeId = view.getFloat32(offset);
+				offset += 4;
+				let killerNodeId = view.getFloat32(offset);
+				offset += 4;
+				let node = nodes.find(node => node.id == killedNodeId);
+				let killerNode = nodes.find(node => node.id == killerNodeId);
+				if (node && killerNode) {
+					node.updateTime = timestamp;
+					node.oldX = node.x;
+					node.oldY = node.y;
+					let x = node.x - killerNode.x;
+					let y = node.y - killerNode.y;
+					let d = Math.hypot(x, y);
+					let r = (killerNode.newSize - node.newSize*2);
+					node.newX = killerNode.x + r * x / d;
+					node.newY = killerNode.y + r * y / d;
+					node.oldSize = node.r;
+					node.newSize = node.newSize / 2;
+					setTimeout(function() {
+						removeNode(node);
+					}, animDelay);
+				} else {
+					removeNode(node);
+				}
 			}
 			numAddedNodes = view.getUint16(offset); 
 			offset += 2;
@@ -188,9 +213,6 @@ function handleWsMessage(view) {
 				offset += 4;
 				let node = nodes.find(node => node.id == nodeId);
 				removeNode(node);
-				if (nodeId == screenNodeId) {
-					showEle(mainOverlay);
-				}
 			}
 			addLog({
 				index: 2,
@@ -211,8 +233,6 @@ function handleWsMessage(view) {
 			break;
 		case 12: 
 			gameSize = view.getInt16(offset);
-			qt = new QuadTree(0, 0, gameSize, gameSize);
-			nodes.forEach(node => qt.insert(node));
 			break;
 		case 13: 
 			screenNodeId = view.getFloat32(offset);
@@ -368,7 +388,7 @@ function gameLoop() {
 	ctx.scale(viewScale, viewScale);
 	ctx.translate(-nodeX, -nodeY);
 
-	renderGrid(26);
+	
 	ctx.fillStyle = ctx.createPattern(gridCanvas, "repeat");
 	ctx.fillRect(
 		-(canvasWidth / 2) / viewScale + nodeX, 
@@ -400,8 +420,18 @@ function gameLoop() {
 	ctx.drawImage(msgCanvas, 10, 10);
 
 	if (timestamp - lastTime > 1000) {
+		statCtx.drawImage(netCanvas, -5, 0);
+		statCtx.fillStyle = "white";
+		statCtx.fillRect(netCanvas.width - 5, 0, 5, netCanvas.height);
+		statCtx.fillStyle = "red";
+		let h = netCanvas.height * throughput / 8000 * 0.8;
+		statCtx.fillRect(netCanvas.width - 5, netCanvas.height - h, 5, h);
+
+		let text = throughput;
+		text > 1024 ? text = (text/1024).toFixed(2)+"k": 0;
+		text += "B/s"
 		addLog({ 
-			text: "Throughput: "+(throughput>1024?(throughput/1024).toFixed(2)+"k":throughput)+"B/s", 
+			text: "Throughput: "+text, 
 			index: 0 
 		});
 		throughput = 0;
@@ -646,7 +676,7 @@ class Circle {
 		ctx.closePath();
 		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
 		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
-		ctx.lineWidth = 5;
+		ctx.lineWidth = this.r < 10 ? 2 : 4;
 		ctx.fill();
 		ctx.stroke();
 		if (this.nicknameText == null) this.nicknameText = new Text();
@@ -655,7 +685,14 @@ class Circle {
 			this.nicknameText.setText(this.nickname);
 			this.nicknameText.render();
 		}
-		if (this.nicknameText) ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
+		if (this.nicknameText) {
+			let fontSize = Math.round(this.newSize * 0.34);
+			if (this.nicknameText.fontSize < fontSize) {
+				this.nicknameText.setFont("bolder " + Math.max(20, fontSize) + "px Arial")
+				this.nicknameText.render();
+			}
+			ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
+		}
 		ctx.restore();
 	}
 }
@@ -790,24 +827,33 @@ let latency = 0,
 	numAddedNodes = 0,
 	numUpdatedNodes = 0,
 	numRemovedNodes = 0,
-	nicknameInput = document.getElementById("nicknameInput"),
-	playButton = document.getElementById("playButton"),
-	mainOverlay = document.getElementById("mainOverlay"),
 	gameCanvas = document.getElementById("gameCanvas"),
-	mainLayout = document.getElementById("mainLayout"),
-	wsConnecting = document.getElementById("wsConnecting"),
 	ctx = gameCanvas.getContext("2d"),
-	gridCanvas = document.createElement("canvas"),
 	lbCanvas = document.createElement("canvas"),
 	msgCanvas = document.createElement("canvas"),
 	logCanvas = document.createElement("canvas"),
+	gridCanvas = document.createElement("canvas"),
+	nicknameInput = document.getElementById("nicknameInput"),
+	playButton = document.getElementById("playButton"),
+	mainOverlay = document.getElementById("mainOverlay"),
+	mainLayout = document.getElementById("mainLayout"),
+	connecting = document.getElementById("connecting"),
+	urlSpan = document.getElementById("urlSpan"),
 	regionSelect = document.getElementById("regionSelect"),
 	settingButton = document.getElementById("settingButton"),
 	settingDiv = document.getElementById("settingDiv"),
 	showLogsCb = document.getElementById("showLogsCb"),
 	showQtCb = document.getElementById("showQtCb"),
 	animDelayRange = document.getElementById("animDelayRange"),
-	animDelayValue = document.getElementById("animDelayValue");
+	animDelaySpan = document.getElementById("animDelaySpan"),
+	urlInput = document.getElementById("urlInput"),
+	connectButton = document.getElementById("connectButton"),
+	statCanvas = document.getElementById("netCanvas"),
+	statCtx = netCanvas.getContext("2d");
+
+connectButton.onclick = function () {
+	wsConnect(urlInput.value);
+}
 
 function showEle(ele) {
 	ele.style.display = "block";
@@ -817,8 +863,12 @@ function hideEle(ele) {
 	ele.style.display = "none";
 }
 
+function isHidden(ele) {
+	return ele.getBoundingClientRect().height == 0;
+}
+
 function toggleEle(ele) {
-	if (ele.getBoundingClientRect().height > 0) hideEle(ele);
+	if (!isHidden(ele)) hideEle(ele);
 	else showEle(ele);
 }
 
@@ -828,7 +878,7 @@ settingButton.onclick = function () {
 
 animDelayRange.oninput = function () {
 	animDelay = animDelayRange.value;
-	animDelayValue.innerText = animDelay;
+	animDelaySpan.innerText = animDelay;
 }
 animDelayRange.value = 120;
 animDelayRange.oninput();
@@ -843,7 +893,8 @@ playButton.onclick = function () {
 }
 
 window.onload = function() {
-	wsConnect(regionSelect.selectedOptions[0].value);
 	onResize();
+	renderGrid(26);
 	gameLoop();
+	wsConnect(regionSelect.selectedOptions[0].value);
 }
