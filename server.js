@@ -446,7 +446,7 @@ class QuadTree {
 		........======________________________======.........
 */ 
 
-let gameSize = 5E3,
+let gameSize = 10E3,
 	nodes = [],
 	qt = new QuadTree(0, 0, gameSize, gameSize),
 	lbNames = [],
@@ -479,17 +479,17 @@ function addFood() {
 	let node = new Circle(
 		Math.random() * gameSize, 
 		Math.random() * gameSize, 
-		Math.random() * 2+5
+		6 || Math.random() * 5+4
 	);
 	node.isFood = true;
 	addNode(node);
 }
 
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 50; i++) {
 	addBot()
 }
 
-for (let i = 0; i < 600; i++) {
+for (let i = 0; i < 5000; i++) {
 	addFood();
 }
 

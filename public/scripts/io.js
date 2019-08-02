@@ -31,11 +31,8 @@ function onMouseMove(evt) {
 function onMouseWheel(evt) {
 	if (evt.target != gameCanvas) return;
 	let zoomSpeed = 0.1;
-	if (evt.deltaY <= -100) {
-		viewScale *= 1 + zoomSpeed;
-	} else if(evt.deltaY >= 100) {
-		viewScale *= 1 - zoomSpeed;
-	}
+	if (evt.deltaY <= -100) viewScale *= 1 + zoomSpeed;
+	else if(evt.deltaY >= 100) viewScale *= 1 - zoomSpeed;
 }
 
 function onClick(evt) { 
@@ -378,6 +375,12 @@ function gameLoop() {
 	if (node) {
 		nodeX = node.x;
 		nodeY = node.y;
+		let s = 1/node.getScale();
+		viewScale = Math.min(2, Math.max(s, viewScale));
+		if (viewScale == oldViewScale) {
+			viewScale = s;
+		}
+		oldViewScale = s;
 	}
 
 	ctx.fillStyle = "#bbb";
@@ -408,11 +411,6 @@ function gameLoop() {
 		let x = a.r - b.r;
 		return x == 0 ? a.id - b.id : x;
 	}).forEach(node => node.draw());
-
-	ctx.strokeStyle = "#333";
-	ctx.lineJoin = "round";
-	ctx.lineWidth = 2;
-	ctx.strokeRect(0, 0, gameSize, gameSize);
 
 	ctx.restore();
 
@@ -583,7 +581,7 @@ class Circle {
 		this.points = [];
 	}
 	updatePoints() {
-		let numPoints = Math.round(this.r);
+		let numPoints = Math.round(this.r)+1;
 		while(this.points.length > numPoints) {
 			let i = Math.floor(Math.random() * this.points.length)
 			this.points.splice(i, 1);
@@ -610,8 +608,8 @@ class Circle {
 			if (this.r > 15) {
 				let c = false;
 				if (x < 0 || x > gameSize || y < 0 || y > gameSize) c = true;
-				qt.query({ x: x - 50, y: y - 50, w: 100, h: 100 }, function (node) {
-					if (Math.hypot(x, y) < node.r) c = true;
+				qt.query({ x: x - 50, y: y - 50, w: 100, h: 100 }, node => {
+					if (Math.hypot(x - node.x, y - node.y) < node.r && node != this) c = true;
 				});
 				if (c) point.v -= 1;
 			}
@@ -720,16 +718,17 @@ class Circle {
 		ctx.lineWidth = this.r < 10 ? 2 : 4;
 		ctx.fill();
 		ctx.stroke();
-		if (this.nicknameText == null) this.nicknameText = new Text();
-		if (this.nickname && this.nicknameText.text != this.nickname) {
-			this.nicknameText.setStyle("#fff", "#333", 3);
-			this.nicknameText.setText(this.nickname);
-			this.nicknameText.render();
-		}
+		if (this.nickname != "" && this.nicknameText == null) this.nicknameText = new Text();
 		if (this.nicknameText) {
+			if (this.nicknameText.text != this.nickname) {
+				this.nicknameText.setStyle("#fff", "#333", 3);
+				this.nicknameText.setText(this.nickname);
+				this.nicknameText.render();
+			}
 			let fontSize = Math.round(this.newSize * 0.34);
-			if (this.nicknameText.fontSize < fontSize) {
-				this.nicknameText.setFont("bolder " + Math.max(20, fontSize) + "px Arial")
+			fontSize = Math.max(20, fontSize)
+			if (this.nicknameText.fontSize < fontSize || this.nicknameText.fontSize > fontSize) {
+				this.nicknameText.setFont("bolder " + fontSize + "px Arial")
 				this.nicknameText.render();
 			}
 			ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
@@ -855,6 +854,7 @@ let latency = 0,
 	height = 900,
 	scale = 1,
 	viewScale = 1,
+	oldViewScale = 1,
 	canvasWidth = 0,
 	canvasHeight = 0,
 	logs = [],
