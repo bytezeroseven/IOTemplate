@@ -11,6 +11,7 @@ function removeNode(node) {
 	qt.remove(node);
 }
 
+
 function onWsConnection(ws, req) {
 	let node = new Circle(0, 0, 0);
 	addNode(node);
@@ -19,7 +20,7 @@ function onWsConnection(ws, req) {
 	node.isPlayer = true;
 
 	function onWsOpen() {
-		sendString(ws, nodes.length+" total nodes");
+		sendString(ws, nodes.length + " total nodes");
 	}
 
 	function onWsClose() {
@@ -116,14 +117,19 @@ function gameTick() {
 	});
 	let sorted = players.sort((a, b) => b.r - a.r);
 	spectateNode = sorted[0];
-	let newLbNames = sorted.map(a => a.nickname)
+	let newLbNames = sorted.filter(n => n.isPlaying).map(a => a.nickname)
 	newLbNames = newLbNames.slice(0, Math.min(10, newLbNames.length));
-	for (let j = 0; j < newLbNames.length; j++) {
-		if (newLbNames[j] != lbNames[j]) {
-			lbNames = newLbNames;
-			break;
+	if (newLbNames.length != lbNames.length) {
+		lbNames = newLbNames;
+	} else {
+		for (let i = 0; i < newLbNames.length; i++) {
+			if (newLbNames[i] != lbNames[i]) {
+				lbNames = newLbNames;
+				break;
+			}
 		}
 	}
+	
 	let nicknameBytes = 0;
 	lbNames.forEach(name => (nicknameBytes += name.length+1));
 	let view = prepareMsg(1+1+nicknameBytes);
@@ -239,6 +245,7 @@ class Circle {
 		this.killerNodeId = null;
 		this.killedNodes = [];
 		this.isSpectating = false;
+		this.scale = 1;
 	}
 	updatePos() {
 		if (animDelay == 0) {
@@ -270,15 +277,17 @@ class Circle {
 			this.hasUpdated = false;
 		}
 	}
+	getScale() {
+		return 1 / Math.pow(Math.min(64 / this.r, 1), 0.4)
+	}
 	updateViewNodes() {
 		let nodesInView = [];
-		let scale = 1 - this.r / 10000;
-		scale <= 0 && (scale = 0.1);
+		let scale = this.getScale();
 		qt.query({ 
-			x: this.x - 1920 / 2 / scale,
-			y: this.y - 1080 / 2 / scale,
-			w: 1920 / scale,
-			h: 1080 / scale
+			x: this.x - 1920 / 2 * scale,
+			y: this.y - 1080 / 2 * scale,
+			w: 1920 * scale,
+			h: 1080 * scale
 		}, function forEach(node) { node.isPlaying && nodesInView.push(node); });
 		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
 		this.updatedNodes = nodesInView.filter(node => node.hasUpdated);
@@ -476,7 +485,7 @@ function addFood() {
 	addNode(node);
 }
 
-for (let i = 0; i < 50; i++) {
+for (let i = 0; i < 100; i++) {
 	addBot()
 }
 

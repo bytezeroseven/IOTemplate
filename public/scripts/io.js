@@ -400,7 +400,7 @@ function gameLoop() {
 	if (showQtCb.checked) qt.draw();
 
 	let viewNodes = []
-	qt.query({ x: nodeX - width/2, y: nodeY-height/2, w: width, h: height }, function(n) {
+	qt.query({ x: nodeX - width/2 / viewScale, y: nodeY-height/2 / viewScale, w: width / viewScale, h: height / viewScale}, function(n) {
 		viewNodes.push(n);
 	})
 
@@ -420,13 +420,6 @@ function gameLoop() {
 	ctx.drawImage(msgCanvas, 10, 10);
 
 	if (timestamp - lastTime > 1000) {
-		statCtx.drawImage(netCanvas, -5, 0);
-		statCtx.fillStyle = "white";
-		statCtx.fillRect(netCanvas.width - 5, 0, 5, netCanvas.height);
-		statCtx.fillStyle = "red";
-		let h = netCanvas.height * throughput / 8000 * 0.8;
-		statCtx.fillRect(netCanvas.width - 5, netCanvas.height - h, 5, h);
-
 		let text = throughput;
 		text > 1024 ? text = (text/1024).toFixed(2)+"k": 0;
 		text += "B/s"
@@ -587,6 +580,48 @@ class Circle {
 		this.hasUpdated = !false;
 		this.isPlaying = !false;
 		this.isPlayer = false;
+		this.points = [];
+	}
+	updatePoints() {
+		let numPoints = Math.round(this.r);
+		while(this.points.length > numPoints) {
+			let i = Math.floor(Math.random() * this.points.length)
+			this.points.splice(i, 1);
+		}
+		while(this.points.length < numPoints) {
+			this.points.splice(Math.floor(Math.random() * this.points.length), 0, {
+				x: 0, 
+				y: 0, 
+				r: this.r,
+				v: Math.random() - 0.5
+			});
+		}
+		this.points.forEach((point, i) => {
+			let prev = this.points[i-1] || this.points[numPoints-1];
+			let next = this.points[i+1] || this.points[0];
+			let v = point.v;
+			v += Math.random() - 0.5;
+			v *= 0.6;
+			v = Math.max(-10, Math.min(v, 10));
+			point.v = (v * 8 + prev.v + next.v) / 10;
+			let f = point.r;
+			let x = this.x + point.x;
+			let y = this.y + point.y;
+			if (this.r > 15) {
+				let c = false;
+				if (x < 0 || x > gameSize || y < 0 || y > gameSize) c = true;
+				qt.query({ x: x - 50, y: y - 50, w: 100, h: 100 }, function (node) {
+					if (Math.hypot(x, y) < node.r) c = true;
+				});
+				if (c) point.v -= 1;
+			}
+			f += point.v;
+			f = (f * 8 + this.r * 2) / 10;
+			f = (f * 8 + prev.r + next.r) / 10;
+			point.r = f;
+			point.x = Math.cos(i / numPoints * 2 * Math.PI) * f;
+			point.y = Math.sin(i / numPoints * 2 * Math.PI) * f;
+		});
 	}
 	updatePos() {
 		if (animDelay == 0) {
@@ -618,13 +653,17 @@ class Circle {
 			this.hasUpdated = false;
 		}
 	}
+	getScale() {
+		return 1 / Math.pow(Math.min(64 / this.r, 1), 0.4)
+	}
 	updateViewNodes() {
 		let nodesInView = [];
+		let scale = this.getScale();
 		qt.query({ 
-			x: this.x - 1920 / 2,
-			y: this.y - 1080 / 2,
-			w: 1920,
-			h: 1080
+			x: this.x - 1920 / 2 * scale,
+			y: this.y - 1080 / 2 * scale,
+			w: 1920 * scale,
+			h: 1080 * scale
 		}, function forEach(node) { node.isPlaying && nodesInView.push(node); });
 		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
 		this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
@@ -672,7 +711,9 @@ class Circle {
 		ctx.save();
 		ctx.translate(this.x, this.y);
 		ctx.beginPath();
-		ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+		this.updatePoints();
+		this.points.forEach(point => ctx.lineTo(point.x, point.y));
+		// ctx.arc(0, 0, this.r, 0, Math.PI * 2);
 		ctx.closePath();
 		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
 		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
@@ -847,9 +888,7 @@ let latency = 0,
 	animDelayRange = document.getElementById("animDelayRange"),
 	animDelaySpan = document.getElementById("animDelaySpan"),
 	urlInput = document.getElementById("urlInput"),
-	connectButton = document.getElementById("connectButton"),
-	statCanvas = document.getElementById("netCanvas"),
-	statCtx = netCanvas.getContext("2d");
+	connectButton = document.getElementById("connectButton");
 
 connectButton.onclick = function () {
 	wsConnect(urlInput.value);

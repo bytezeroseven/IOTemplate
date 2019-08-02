@@ -10,12 +10,12 @@
 	<canvas class="overlay" id="gameCanvas"></canvas>
 	<div class="overlay" id="mainOverlay">
 		<div id="topLeft">
-			<div class="container" id="connecting" style="display: none;">
+			<div style="display: none;" class="container" id="connecting">
 				<h3>Connecting...</h3>
 				<small><span id="urlSpan">Null</span></small>
 			</div>
 			<div style="clear: both;"></div>
-			<div class="container" id="settingDiv" style="display: none;">
+			<div style="display: none;" class="container" id="settingDiv">
 				<div>
 					<h3>Settings</h3>
 					<div>
@@ -37,16 +37,15 @@
 					<div><input type="checkbox" id="showQtCb"><label for="showQtCb">Show QT</label></div>
 					<div><input type="checkbox" id="showLogsCb" checked><label for="showLogsCb">Show Logs</label></div>
 					<div>
-						<span>Delay:</span><input type="range" id="animDelayRange" min="0" max="1000" step="20">
+						<span>Delay:</span>
+						<input type="range" id="animDelayRange" min="0" max="1000" step="20">
 						<span id="animDelaySpan">0</span><span>ms</span>
 					</div>
 				</div>
 				<div>
 					<h3>Experimental</h3>
-					<small>Net. curve</small>
-					<canvas id="netCanvas" width="400" height="120"></canvas>
-					<div>
-						<input type="text" id="urlInput" placeholder="URL..." spellcheck="false" value="http://localhost:6969">
+					<div style="display: inline-flex;">
+						<input style="margin-right: 5px" type="text" id="urlInput" placeholder="URL..." spellcheck="false" value="http://localhost:6969">
 						<button id="connectButton">Connect</button>
 					</div>
 				</div>
