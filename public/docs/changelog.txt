@@ -1,7 +1,7 @@
 Changelog
 
 (I just hope to release an initial version of the game before I leave
-the project and move on to another reckless effort for making an io game.)
+the project and move on to another reckless effort of making an io game.)
 
 v0.0.15 (2nd August, 2019)
 	- Fixed leaderboard.
