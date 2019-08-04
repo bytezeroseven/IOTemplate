@@ -68,6 +68,12 @@ function onWsConnection(ws, req) {
 					sendMsg(ws, lbNamesView);
 				}
 				break;
+			case 55:
+				let d = Math.hypot(node.mouseX, node.mouseY);
+				let nn = new Circle(node.x + node.mouseX / d * (node.r +20), node.y + node.mouseY / d * (node.r+20), 20);
+				nn.boostX = node.mouseX / d * 40;
+				nn.boostY = node.mouseY / d * 40;
+				addNode(nn);
 			case 33:
 				sendUint8(ws, 33);
 				break;
@@ -245,7 +251,8 @@ class Circle {
 		this.killerNodeId = null;
 		this.killedNodes = [];
 		this.isSpectating = false;
-		this.scale = 1;
+		this.boostX = 0;
+		this.boostY = 0;
 	}
 	updatePos() {
 		if (animDelay == 0) {
@@ -264,6 +271,10 @@ class Circle {
 		let speed = 1 / (1 + Math.pow(0.5 * this.r, 0.43)) * 1.28 * 60; 
 		this.x += this.mouseX / d * speed;
 		this.y += this.mouseY / d * speed;
+		this.x += this.boostX;
+		this.y += this.boostY;
+		this.boostX *= 0.95;
+		this.boostY *= 0.95;
 		this.x = Math.max(Math.min(this.x, gameSize), 0);
 		this.y = Math.max(Math.min(this.y, gameSize), 0);
 	}

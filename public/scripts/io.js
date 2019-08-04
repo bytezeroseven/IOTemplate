@@ -18,6 +18,11 @@ function onResize() {
 function onKeyUp(evt) {
 	if (evt.keyCode == 27) toggleEle(mainOverlay);
 	if (evt.key.toLowerCase() == "j") sendUint8(ws, 255);
+	if (evt.key == "6") sendUint8(ws, 55);
+}
+
+function onKeyDown(evt) {
+	if (evt.key == " ") sendUint8(ws, 55);
 }
 
 function onMouseMove(evt) {
@@ -41,6 +46,7 @@ function onClick(evt) {
 
 document.onmousemove = onMouseMove;
 document.onkeyup = onKeyUp;
+document.onkeydown = onKeyDown;
 document.onclick = onClick;
 document.onmousewheel = onMouseWheel;
 window.onresize = onResize;
@@ -614,7 +620,7 @@ class Circle {
 				if (c) point.v -= 1;
 			}
 			f += point.v;
-			f = (f * 8 + this.r * 2) / 10;
+			f = (f * 9 + this.r) / 10;
 			f = (f * 8 + prev.r + next.r) / 10;
 			point.r = f;
 			point.x = Math.cos(i / numPoints * 2 * Math.PI) * f;
@@ -709,9 +715,10 @@ class Circle {
 		ctx.save();
 		ctx.translate(this.x, this.y);
 		ctx.beginPath();
-		this.updatePoints();
-		this.points.forEach(point => ctx.lineTo(point.x, point.y));
-		// ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+		if (showBorderCb.checked) {
+			this.updatePoints();
+			this.points.forEach(point => ctx.lineTo(point.x, point.y));
+		} else ctx.arc(0, 0, this.r, 0, Math.PI * 2);
 		ctx.closePath();
 		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
 		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
@@ -885,6 +892,7 @@ let latency = 0,
 	settingDiv = document.getElementById("settingDiv"),
 	showLogsCb = document.getElementById("showLogsCb"),
 	showQtCb = document.getElementById("showQtCb"),
+	showBorderCb = document.getElementById("showBorderCb"),
 	animDelayRange = document.getElementById("animDelayRange"),
 	animDelaySpan = document.getElementById("animDelaySpan"),
 	urlInput = document.getElementById("urlInput"),
