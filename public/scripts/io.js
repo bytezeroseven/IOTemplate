@@ -620,7 +620,7 @@ class Circle {
 				if (c) point.v -= 1;
 			}
 			f += point.v;
-			f = (f * 9 + this.r) / 10;
+			f = (f * 8 + this.r * 2) / 10;
 			f = (f * 8 + prev.r + next.r) / 10;
 			point.r = f;
 			point.x = Math.cos(i / numPoints * 2 * Math.PI) * f;
