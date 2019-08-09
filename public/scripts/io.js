@@ -16,7 +16,10 @@ function onResize() {
 }
 
 function onKeyUp(evt) {
-	if (evt.keyCode == 27) toggleEle(mainOverlay);
+	if (evt.keyCode == 27) {
+		if (!isHidden(settingOverlay)) hideEle(settingOverlay)
+		else toggleEle(mainOverlay);
+	}
 	if (evt.key.toLowerCase() == "j") sendUint8(ws, 255);
 	if (evt.key == "6") sendUint8(ws, 55);
 }
@@ -42,6 +45,7 @@ function onMouseWheel(evt) {
 
 function onClick(evt) { 
 	if (evt.target == mainOverlay) hideEle(mainOverlay);
+	if (evt.target == settingOverlay) hideEle(settingOverlay);
 }
 
 document.onmousemove = onMouseMove;
@@ -120,13 +124,17 @@ function wsConnect(wsUrl) {
 		console.log("websocket error");
 	}
 	nodes = [];
-	nodeId = null;
+	screenNodeId = null;
 	gameSize = 0;
 	latencyCheckTime = 0;
 	lastTime = 0;
 	msgs = [];
 	logs = [];
 	lbNames = [];
+}
+
+function spectate() {
+	sendUint8(ws, 69);
 }
 
 function handleWsMessage(view) {
@@ -144,6 +152,7 @@ function handleWsMessage(view) {
 				posX, 
 				posY, 
 				size;
+			let n = 0;
 			function readCommonData() {
 				nodeId = view.getFloat32(offset); 
 				offset += 4;
@@ -155,6 +164,7 @@ function handleWsMessage(view) {
 				offset += 2;
 			}
 			let queueLength = view.getUint16(offset);
+			n += queueLength;
 			offset += 2;
 			for (let i = 0; i < queueLength; i++) {
 				let killedNodeId = view.getFloat32(offset);
@@ -174,7 +184,7 @@ function handleWsMessage(view) {
 					node.newX = killerNode.x + r * x / d;
 					node.newY = killerNode.y + r * y / d;
 					node.oldSize = node.r;
-					node.newSize = node.newSize / 2;
+					node.newSize = 0 * node.newSize / 2;
 					setTimeout(function() {
 						removeNode(node);
 					}, animDelay);
@@ -209,7 +219,7 @@ function handleWsMessage(view) {
 					node.newSize = size;
 				}
 			}
-			numRemovedNodes = view.getUint16(offset); 
+			numRemovedNodes = view.getUint16(offset);
 			offset += 2;
 			for (let i = 0; i < numRemovedNodes; i++) {
 				nodeId = view.getFloat32(offset); 
@@ -219,7 +229,7 @@ function handleWsMessage(view) {
 			}
 			addLog({
 				index: 2,
-				text: numAddedNodes+"/"+numUpdatedNodes+"/"+numRemovedNodes+" (add/update/remove)",
+				text: numAddedNodes+"/"+numUpdatedNodes+"/"+numRemovedNodes+n+" (add/update/remove)",
 			});
 			break;
 		case 20: 
@@ -285,7 +295,7 @@ function sendMousePos() {
 
 function renderLogs() {
 	logCanvas.width = logs.map(a => a.width).sort((a,b) => b-a)[0];
-	logCanvas.height = logs.map(a => a.height).reduce((a, b) => a+b);
+	logCanvas.height = logs.map(a => a.height).reduce((a, b) => a+b) + 2*logs.length;
 	let ctx = logCanvas.getContext("2d");
 	let posY = 0;
 	logs.forEach(function(log) {
@@ -368,7 +378,9 @@ function addLog(args) {
 }
 
 function gameLoop() {
-	timestamp = +Date.now();
+	let now = +Date.now();
+	fps = 1000 / (now - timestamp);
+	timestamp = now;
 
 	qt = new QuadTree(0, 0, gameSize, gameSize);
 
@@ -397,7 +409,6 @@ function gameLoop() {
 	ctx.scale(viewScale, viewScale);
 	ctx.translate(-nodeX, -nodeY);
 
-	
 	ctx.fillStyle = ctx.createPattern(gridCanvas, "repeat");
 	ctx.fillRect(
 		-(canvasWidth / 2) / viewScale + nodeX, 
@@ -405,7 +416,7 @@ function gameLoop() {
 		canvasWidth / viewScale, 
 		canvasHeight / viewScale
 	);
-	
+
 	if (showQtCb.checked) qt.draw();
 
 	let viewNodes = []
@@ -581,13 +592,22 @@ class Circle {
 		this.updatedNodes = [];
 		this.nodesInView = [];
 		this.nicknameText = null;
-		this.hasUpdated = !false;
 		this.isPlaying = !false;
 		this.isPlayer = false;
+		this.isFood = false;
+		this.isBot = false;
+		this.killerNodeId = null;
+		this.killedNodes = [];
+		this.isSpectating = false;
+		this.boostX = 0;
+		this.boostY = 0;
 		this.points = [];
 	}
 	updatePoints() {
-		let numPoints = Math.round(this.r)+1;
+		let numPoints = this.r;
+		numPoints *= viewScale * 1.1;
+		numPoints = Math.round(numPoints);
+		numPoints = Math.max(numPoints, 8);
 		while(this.points.length > numPoints) {
 			let i = Math.floor(Math.random() * this.points.length)
 			this.points.splice(i, 1);
@@ -614,7 +634,7 @@ class Circle {
 			if (this.r > 15) {
 				let c = false;
 				if (x < 0 || x > gameSize || y < 0 || y > gameSize) c = true;
-				qt.query({ x: x - 50, y: y - 50, w: 100, h: 100 }, node => {
+				qt.query2(x, y, node => {
 					if (Math.hypot(x - node.x, y - node.y) < node.r && node != this) c = true;
 				});
 				if (c) point.v -= 1;
@@ -684,7 +704,8 @@ class Circle {
 		let nicknameBytes = 0;
 		this.addedNodes.forEach(node => (nicknameBytes += node.nickname.length+1));
 		let view = prepareMsg(
-			1+2*3+
+			1+2*4+
+			this.killedNodes.length*(4+4)+
 			this.addedNodes.length*(4+2+2+2+1)+
 			nicknameBytes+
 			this.updatedNodes.length*(4+2+2+2)+
@@ -692,6 +713,16 @@ class Circle {
 		);
 		let offset = 0;
 		view.setUint8(offset++, 10);
+
+		view.setUint16(offset, this.killedNodes.length);
+		offset += 2;
+		this.killedNodes.forEach(node => {
+			view.setFloat32(offset, node.id);
+			offset += 4;
+			view.setFloat32(offset, node.killerNodeId);
+			offset += 4;
+		})
+
 		view.setUint16(offset, this.addedNodes.length);
 		offset += 2;
 		this.addedNodes.forEach(node => {
@@ -712,10 +743,14 @@ class Circle {
 		return view;
 	}
 	draw() {
+		let w = canvasWidth / 2 * 1 / viewScale;
+		let h = canvasHeight / 2 * 1 / viewScale; 
+		if (this.x + this.r - nodeX < -w || this.x - this.r - nodeX > w || 
+			this.y + this.r - nodeY < -h || this.y - this.r - nodeY > h) return "false dont draw pls";
 		ctx.save();
 		ctx.translate(this.x, this.y);
 		ctx.beginPath();
-		if (showBorderCb.checked) {
+		if (showBorderCb.checked && viewScale > 0.53) {
 			this.updatePoints();
 			this.points.forEach(point => ctx.lineTo(point.x, point.y));
 		} else ctx.arc(0, 0, this.r, 0, Math.PI * 2);
@@ -727,15 +762,13 @@ class Circle {
 		ctx.stroke();
 		if (this.nickname != "" && this.nicknameText == null) this.nicknameText = new Text();
 		if (this.nicknameText) {
-			if (this.nicknameText.text != this.nickname) {
-				this.nicknameText.setStyle("#fff", "#333", 3);
-				this.nicknameText.setText(this.nickname);
-				this.nicknameText.render();
-			}
 			let fontSize = Math.round(this.newSize * 0.34);
-			fontSize = Math.max(20, fontSize)
-			if (this.nicknameText.fontSize < fontSize || this.nicknameText.fontSize > fontSize) {
-				this.nicknameText.setFont("bolder " + fontSize + "px Arial")
+			fontSize = Math.max(20, fontSize);
+			let lw = 3;
+			if (this.nicknameText.text != this.nickname || Math.abs(this.nicknameText.fontSize - fontSize) > 0) {
+				this.nicknameText.setText(this.nickname);
+				this.nicknameText.setFont("bolder " + fontSize + "px Arial");
+				this.nicknameText.setStyle("#fff", "#333", lw);
 				this.nicknameText.render();
 			}
 			ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
@@ -809,6 +842,13 @@ class QuadTree {
 			}
 		}
 	}
+	query2(x, y, func) {
+		if (this.nodes.length > 0) {
+			this.nodes[this.findNodeId(x, y)].query2(x, y, func);
+		} else {
+			for (let i = 0; i < this.items.length; i++) func(this.items[i]);
+		}
+	}
 	draw(showItems) {
 		if (this.nodes.length > 0) {
 			for (let i = 0; i < this.nodes.length; i++) this.nodes[i].draw(showItems);
@@ -859,8 +899,10 @@ let latency = 0,
 	mouseY = 0,
 	width = 1600,
 	height = 900,
-	scale = 1,
 	viewScale = 1,
+	scale = 1,
+	fps = 0,
+	b = 1,
 	oldViewScale = 1,
 	canvasWidth = 0,
 	canvasHeight = 0,
@@ -896,7 +938,8 @@ let latency = 0,
 	animDelayRange = document.getElementById("animDelayRange"),
 	animDelaySpan = document.getElementById("animDelaySpan"),
 	urlInput = document.getElementById("urlInput"),
-	connectButton = document.getElementById("connectButton");
+	connectButton = document.getElementById("connectButton"),
+	settingOverlay = document.getElementById("settingOverlay");
 
 connectButton.onclick = function () {
 	wsConnect(urlInput.value);
@@ -920,7 +963,7 @@ function toggleEle(ele) {
 }
 
 settingButton.onclick = function () {
-	toggleEle(settingDiv);
+	toggleEle(settingOverlay);
 }
 
 animDelayRange.oninput = function () {

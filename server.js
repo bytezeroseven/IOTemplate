@@ -11,6 +11,7 @@ function removeNode(node) {
 	qt.remove(node);
 }
 
+let players = [];
 
 function onWsConnection(ws, req) {
 	let node = new Circle(0, 0, 0);
@@ -74,8 +75,12 @@ function onWsConnection(ws, req) {
 				nn.boostX = node.mouseX / d * 40;
 				nn.boostY = node.mouseY / d * 40;
 				addNode(nn);
+				node.r = Math.sqrt(Math.pow(node.r / 10, 2) - 1) * 10;
 			case 33:
 				sendUint8(ws, 33);
+				break;
+			case 69:
+				node.isSpectating = true;
 				break;
 			case 255:
 				node.isPlaying = !node.isPlaying;
@@ -88,6 +93,12 @@ function gameTick() {
 	let players = [];
 	nodes.forEach(node => {
 		if (node.isPlayer) players.push(node);
+		if (node.isSpectating) {
+			node.x = spectateX;
+			node.y = spectateY;
+			node.r = spectateSize;
+			return;
+		}
 		if (node.isPlaying != false) node.move();
 		node.checkIfUpdated();
 		if (node.x >= node._qtNode.x && node.y >= node._qtNode.y && node.x <= node._qtNode.x+node._qtNode.w && node.y <= node._qtNode.y+node._qtNode.h) {
@@ -123,6 +134,11 @@ function gameTick() {
 	});
 	let sorted = players.sort((a, b) => b.r - a.r);
 	spectateNode = sorted[0];
+	if (spectateNode) {
+		spectateX = spectateNode.x;
+		spectateY = spectateNode.y;
+		spectateSize = spectateNode.r;
+	}
 	let newLbNames = sorted.filter(n => n.isPlaying).map(a => a.nickname)
 	newLbNames = newLbNames.slice(0, Math.min(10, newLbNames.length));
 	if (newLbNames.length != lbNames.length) {
@@ -135,7 +151,6 @@ function gameTick() {
 			}
 		}
 	}
-	
 	let nicknameBytes = 0;
 	lbNames.forEach(name => (nicknameBytes += name.length+1));
 	let view = prepareMsg(1+1+nicknameBytes);
@@ -145,13 +160,9 @@ function gameTick() {
 	for (let i = 0; i < lbNames.length; i++) offset = writeString(view, offset, lbNames[i]);
 	lbNamesView = view;
 	players.forEach(node => {
-		if (isWsOpen(node.ws)) {
-			if (node.isSpectating) {
-				sendMsg(node.ws, spectateNode.getNodesPackage());
-			} else {
-				node.updateViewNodes();
-				sendMsg(node.ws, node.getNodesPackage());
-			}
+		if (isWsOpen(node.ws)) { 
+			node.updateViewNodes();
+			sendMsg(node.ws, node.getNodesPackage());
 			lbNames == newLbNames && sendMsg(node.ws, lbNamesView);
 		}
 	});
@@ -253,6 +264,51 @@ class Circle {
 		this.isSpectating = false;
 		this.boostX = 0;
 		this.boostY = 0;
+		this.points = [];
+	}
+	updatePoints() {
+		let numPoints = this.r;
+		numPoints *= viewScale * 1.1;
+		numPoints = Math.round(numPoints);
+		numPoints = Math.max(numPoints, 8);
+		while(this.points.length > numPoints) {
+			let i = Math.floor(Math.random() * this.points.length)
+			this.points.splice(i, 1);
+		}
+		while(this.points.length < numPoints) {
+			this.points.splice(Math.floor(Math.random() * this.points.length), 0, {
+				x: 0, 
+				y: 0, 
+				r: this.r,
+				v: Math.random() - 0.5
+			});
+		}
+		this.points.forEach((point, i) => {
+			let prev = this.points[i-1] || this.points[numPoints-1];
+			let next = this.points[i+1] || this.points[0];
+			let v = point.v;
+			v += Math.random() - 0.5;
+			v *= 0.6;
+			v = Math.max(-10, Math.min(v, 10));
+			point.v = (v * 8 + prev.v + next.v) / 10;
+			let f = point.r;
+			let x = this.x + point.x;
+			let y = this.y + point.y;
+			if (this.r > 15) {
+				let c = false;
+				if (x < 0 || x > gameSize || y < 0 || y > gameSize) c = true;
+				qt.query2(x, y, node => {
+					if (Math.hypot(x - node.x, y - node.y) < node.r && node != this) c = true;
+				});
+				if (c) point.v -= 1;
+			}
+			f += point.v;
+			f = (f * 8 + this.r * 2) / 10;
+			f = (f * 8 + prev.r + next.r) / 10;
+			point.r = f;
+			point.x = Math.cos(i / numPoints * 2 * Math.PI) * f;
+			point.y = Math.sin(i / numPoints * 2 * Math.PI) * f;
+		});
 	}
 	updatePos() {
 		if (animDelay == 0) {
@@ -355,6 +411,39 @@ class Circle {
 		});
 		return view;
 	}
+	draw() {
+		let w = canvasWidth / 2 * 1 / viewScale;
+		let h = canvasHeight / 2 * 1 / viewScale; 
+		if (this.x + this.r - nodeX < -w || this.x - this.r - nodeX > w || 
+			this.y + this.r - nodeY < -h || this.y - this.r - nodeY > h) return "false dont draw pls";
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.beginPath();
+		if (showBorderCb.checked && viewScale > 0.53) {
+			this.updatePoints();
+			this.points.forEach(point => ctx.lineTo(point.x, point.y));
+		} else ctx.arc(0, 0, this.r, 0, Math.PI * 2);
+		ctx.closePath();
+		ctx.fillStyle = "hsl("+this.hue+", 100%, 46%)";
+		ctx.strokeStyle = "hsl("+this.hue+", 100%, 38%)";
+		ctx.lineWidth = this.r < 10 ? 2 : 4;
+		ctx.fill();
+		ctx.stroke();
+		if (this.nickname != "" && this.nicknameText == null) this.nicknameText = new Text();
+		if (this.nicknameText) {
+			let fontSize = Math.round(this.newSize * 0.34);
+			fontSize = Math.max(20, fontSize);
+			let lw = 3;
+			if (this.nicknameText.text != this.nickname || Math.abs(this.nicknameText.fontSize - fontSize) > 0) {
+				this.nicknameText.setText(this.nickname);
+				this.nicknameText.setFont("bolder " + fontSize + "px Arial");
+				this.nicknameText.setStyle("#fff", "#333", lw);
+				this.nicknameText.render();
+			}
+			ctx.drawImage(this.nicknameText.canvas, -this.nicknameText.width/2, -this.nicknameText.height/2);
+		}
+		ctx.restore();
+	}
 }
 
 class QuadTree {
@@ -422,6 +511,13 @@ class QuadTree {
 			}
 		}
 	}
+	query2(x, y, func) {
+		if (this.nodes.length > 0) {
+			this.nodes[this.findNodeId(x, y)].query2(x, y, func);
+		} else {
+			for (let i = 0; i < this.items.length; i++) func(this.items[i]);
+		}
+	}
 	draw() {
 		if (this.nodes.length > 0) {
 			for (let i = 0; i < this.nodes.length; i++) this.nodes[i].draw();
@@ -462,7 +558,9 @@ let gameSize = 10E3,
 	qt = new QuadTree(0, 0, gameSize, gameSize),
 	lbNames = [],
 	lbNamesView = prepareMsg(0),
-	spectateNode = null;
+	spectateX = 0,
+	spectateY = 0,
+	spectateSize = 0;
 
 function addBot() {
 	let node = new Circle(
@@ -500,7 +598,7 @@ for (let i = 0; i < 50; i++) {
 	addBot()
 }
 
-for (let i = 0; i < 5000; i++) {
+for (let i = 0; i < 0 * 5000; i++) {
 	addFood();
 }
 

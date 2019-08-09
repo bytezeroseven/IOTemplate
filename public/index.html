@@ -8,16 +8,65 @@
 </head>
 <body>
 	<canvas class="overlay" id="gameCanvas"></canvas>
+	<!-- MENU -->
 	<div class="overlay" id="mainOverlay">
-		<div id="topLeft">
-			<div style="display: none;" class="container" id="connecting">
-				<h3>Connecting...</h3>
-				<small><span id="urlSpan">Null</span></small>
+		<!-- MAIN UI -->
+		<header>
+			<h1>G69.IO</h1>
+			<h2>The next big (or small) io game!</h2>
+		</header>
+		<div class="center" id="main">
+			<div class="container">
+				<div class="ad" style="width: 250px; height: 250px">
+					<span>250x250</span>
+				</div>
 			</div>
-			<div style="clear: both;"></div>
-			<div style="display: none;" class="container" id="settingDiv">
+			<div class="container">
+				<div id="inputDiv">
+					<input type="text" id="nicknameInput" placeholder="Name..." spellcheck="false">
+					<div>
+						<button id="playButton" disabled>Play</button>
+						<button id="settingButton">Settings</button>
+					</div>
+				</div>
+			</div>
+			<div class="container">
+				<h3>How to play?</h3>
+				<p>You spawn as a cell and eat others.</p>
+				<h3>Random scribblings</h3>
+				<p>Girls go to college to get more knowledge, boys go to jupiter to get more stupider.</p>
+				<h3>How to never miss? Huh?</h3>
+				<p>Hit or miss, I guess they never miss huh? You got a boyfriend I bet he doesn't kiss ya... Muaaahh!</p>
+				<div>Created by:
+					<div><a href="#">Sidnet De Bot</a></div>
+				</div>
+			</div>
+		</div>
+		<div class="center">
+			<div class="container">
+				<div class="ad" style="width: 729px; height: 90px">
+					<span>729x90</span>
+				</div>
+			</div>
+		</div>
+		<footer>
+			<ul class="social">
+				<li><a href="#">Facebook</a></li>
+				<li><a href="#">Google Plus</a></li>
+				<li><a href="#">Reddit</a></li>
+				<li><a href="#">Twitter</a></li>
+			</ul>
+			<ul class="links">
+				<li><a href="docs/privacy.txt">Privacy</a></li>
+				<li><a href="docs/terms.txt">Terms</a></li>
+				<li><a href="docs/changelog.txt">0.0.1</a></li>
+			</ul>
+		</footer>
+		<!-- SETTINGS -->
+		<div style="display: none;" class="overlay" id="settingOverlay">
+			<div class="container center" id="settingDiv">
 				<div>
-					<h3>Settings</h3>
+					<h2><center>Settings</center></h2>
 					<div>
 						<span>Region:</span>
 						<select id="regionSelect">
@@ -52,58 +101,16 @@
 				</div>
 			</div>
 		</div>
-		<header>
-			<h1>G69.IO</h1>
-			<h2>The next big (or small) io game!</h2>
-		</header>
-		<div class="centered" id="mainLayout">
-			<div class="container">
-				<div class="ad" style="width: 250px; height: 250px">
-					<span>250x250</span>
-				</div>
+		<!-- CONNECTING -->
+		<div id="topLeft">
+			<div style="display: none;" class="container" id="connecting">
+				<h3>Connecting...</h3>
+				<small><span id="urlSpan">Null</span></small>
 			</div>
-			<div class="container">
-				<div id="inputDiv">
-					<input type="text" id="nicknameInput" placeholder="Name..." spellcheck="false">
-					<div>
-						<button id="playButton" disabled>Play</button>
-						<button id="settingButton">Settings</button>
-					</div>
-				</div>
-			</div>
-			<div class="container">
-				<h3>How to play?</h3>
-				<p>You spawn as a cell and eat others.</p>
-				<h3>Random scribblings</h3>
-				<p>Girls go to college to get more knowledge, boys go to jupiter to get more stupider.</p>
-				<h3>How to never miss? Huh?</h3>
-				<p>Hit or miss, I guess they never miss huh? You got a boyfriend I bet he doesn't kiss ya... Muaaahh!</p>
-				<div>Created by:
-					<div><a href="#">Sidnet De Bot</a></div>
-				</div>
-			</div>
+			<div style="clear: both;"></div>
 		</div>
-		<div class="centered">
-			<div class="container">
-				<div class="ad" style="width: 729px; height: 90px">
-					<span>729x90</span>
-				</div>
-			</div>
-		</div>
-		<footer>
-			<ul class="social">
-				<li><a href="#">Facebook</a></li>
-				<li><a href="#">Google Plus</a></li>
-				<li><a href="#">Reddit</a></li>
-				<li><a href="#">Twitter</a></li>
-			</ul>
-			<ul class="links">
-				<li><a href="docs/privacy.txt">Privacy</a></li>
-				<li><a href="docs/terms.txt">Terms</a></li>
-				<li><a href="docs/changelog.txt">0.0.1</a></li>
-			</ul>
-		</footer>
 	</div>
+	<!-- SCRIPTS -->
 	<script type="../shared/utils.js"></script>
 	<script src="scripts/io.js"></script>
 </body>
