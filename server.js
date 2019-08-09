@@ -598,7 +598,7 @@ for (let i = 0; i < 50; i++) {
 	addBot()
 }
 
-for (let i = 0; i < 0 * 5000; i++) {
+for (let i = 0; i < 5000; i++) {
 	addFood();
 }
 
