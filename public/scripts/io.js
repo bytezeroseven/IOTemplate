@@ -21,11 +21,11 @@ function onKeyUp(evt) {
 		else toggleEle(mainOverlay);
 	}
 	if (evt.key.toLowerCase() == "j") sendUint8(ws, 255);
-	if (evt.key == "6") sendUint8(ws, 55);
+	if (evt.key == "w") sendUint8(ws, 55);
 }
 
 function onKeyDown(evt) {
-	if (evt.key == " ") sendUint8(ws, 55);
+	
 }
 
 function onMouseMove(evt) {
