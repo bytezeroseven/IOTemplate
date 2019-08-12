@@ -168,18 +168,7 @@ function gameTick() {
 	});
 }
 
-/* 
-		           ...[```````[ START ]``````]...
-	<================= COMMON NETWORKING CODE ==================>
-		........======________________________======.........
-*/ 
-
-/* 
-		           ...[````````[ START ]````````]...
-	<================= SERVER INIT (DON'T TOUCH) ==================>
-		........======___________________________======.........
-*/ 
-
+// SERVER CODE
 function pong() {
 	this.isAlive = true;
 }
@@ -205,8 +194,6 @@ app.use("/", printIp);
 app.use("/shared", express.static("shared"));
 app.use("/", express.static("public"));
 
-
-
 let port = process.env.PORT || 6969;
 let server = app.listen(port, function done() {
 	console.log("Server started listening on port=" + port);
@@ -219,15 +206,8 @@ wss.on("connection", onWsConnection);
 setInterval(ping, 3E4);
 setInterval(gameTick, 1E3/20);
 
-/* 
-		           ...[````````[  END  ]````````]...
-	<================= SERVER INIT (DON'T TOUCH) ==================>
-		........======___________________________======.........
-*/ 
 
-
-
-
+// COMMON NET CODE
 let utils = require("./shared/utils.js");
 for (let i in utils) {
 	global[i] = utils[i];
@@ -245,14 +225,6 @@ let gameSize = 10E3,
 global.gameSize = gameSize;
 global.WebSocket = WebSocket;
 global.qt = qt;
-
-
-/* 
-		           ...[```````[  END  ]``````]...
-	<================= COMMON NETWORKING CODE ==================>
-		........======________________________======.........
-*/ 
-
 
 
 function addBot() {
