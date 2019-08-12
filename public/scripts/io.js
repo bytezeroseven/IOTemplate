@@ -458,47 +458,6 @@ function gameLoop() {
 	renderLb();
 	ctx.drawImage(lbCanvas, canvasWidth - lbCanvas.width-10, 10);
 
-	// MOOMOO TEST //
-/*
-	ctx.save();
-
-
-	ctx.translate(200, 200);
-	
-	ctx.beginPath();
-	ctx.arc(22, -20, 10, 0, Math.PI * 2);
-	ctx.closePath();
-	ctx.fillStyle = "#007700";
-	ctx.strokeStyle = "#005500";
-	ctx.fill();
-	ctx.lineWidth = 3;
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.arc(22, 20, 10, 0, Math.PI * 2);
-	ctx.closePath();
-	ctx.fillStyle = "#007700";
-	ctx.strokeStyle = "#005500";
-	ctx.fill();
-	ctx.lineWidth = 3;
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.arc(0, 0, 30, 0, Math.PI * 2);
-	ctx.closePath();
-	ctx.fillStyle = "#007700";
-	ctx.strokeStyle = "#005500";
-	ctx.fill();
-	ctx.lineWidth = 3;
-	ctx.stroke();
-		
-
-	
-
-	ctx.restore();
-*/
-
-
 	requestAnimationFrame(gameLoop);
 }
 
@@ -546,10 +505,6 @@ class Text {
 		return this.canvas;
 	}
 }
-
-// COMMON NETT. CODE //
-
-
 
 let latency = 0,
 	latencyCheckTime = 0,
@@ -634,7 +589,7 @@ settingButton.onclick = function () {
 }
 
 animDelayRange.oninput = function () {
-	animDelay = animDelayRange.value;
+	animDelay = parseInt(animDelayRange.value);
 	animDelaySpan.innerText = animDelay;
 }
 animDelayRange.value = 120;

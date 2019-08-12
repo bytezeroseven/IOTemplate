@@ -186,8 +186,10 @@ class Circle {
 			h: 1080 * scale
 		}, function forEach(node) { node.isPlaying && nodesInView.push(node); });
 		this.addedNodes = nodesInView.filter(node => this.nodesInView.indexOf(node) == -1);
-		this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
 		this.updatedNodes = nodesInView.filter(node => node.hasUpdated);
+		let allRemovedNodes = this.removedNodes = this.nodesInView.filter(node => nodesInView.indexOf(node) == -1);
+		this.killedNodes = allRemovedNodes.filter(node => node.killerNodeId);
+		this.removedNodes = allRemovedNodes.filter(node => this.killedNodes.indexOf(node) == -1);
 		this.nodesInView = nodesInView;
 	}
 	getNodesPackage() {

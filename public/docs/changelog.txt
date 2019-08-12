@@ -3,11 +3,21 @@ Changelog
 (I just hope to release an initial version of the game before I leave
 the project and move on to another reckless effort of making an io game.)
 
-v0.0.17 (?? August, 2019)
+TODO 
+	- Optimize client and server side.
+	- Organise and refactor code.
+	- Improve UI.
+	- Add more stuff to this list.
+
+v0.0.17 (12th August, 2019)
 	- UI Improvements.
 		- New setting dialog.
-		- Organized CSS code.
+		- Organized CSS code. 
 	- Limited cell border points.
+	- Added auto zoom.
+	- Number of cell border points are now function of zoom and mass.
+	- Sharing common server and client code (see /shared/utils.js).
+	- Added TODO list. 
 
 v0.0.16 (4th August, 2019)
 	- Show borders settings.
